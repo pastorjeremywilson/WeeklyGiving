@@ -29,9 +29,9 @@ import subprocess
 
 from dateutil.parser import parse, ParserError
 from PyQt5.QtCore import QRegExp, Qt
-from PyQt5.QtGui import QIcon, QFont
+from PyQt5.QtGui import QIcon, QFont, QPixmap
 from PyQt5.QtWidgets import QMainWindow, QWidget, QGridLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QLineEdit, \
-    QTextEdit, QVBoxLayout, QScrollArea, QMessageBox
+    QTextEdit, QVBoxLayout, QScrollArea, QMessageBox, QTextBrowser
 
 
 class GUI(QMainWindow):
@@ -117,36 +117,49 @@ class GUI(QMainWindow):
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu('File')
 
-        new_action = file_menu.addAction('New Record')
-        new_action.triggered.connect(self.lwg.create_new_rec)
-
-        save_action = file_menu.addAction('Save')
+        save_action = file_menu.addAction('Save Record')
         save_action.triggered.connect(self.lwg.save_rec)
 
-        delete_action = file_menu.addAction('Delete Record')
-        delete_action.triggered.connect(self.lwg.del_rec)
+        print_action = file_menu.addAction('Print')
+        print_action.triggered.connect(self.print_rec)
 
         file_menu.addSeparator()
 
         exit_action = file_menu.addAction('Exit')
         exit_action.triggered.connect(self.close)
 
-        config_menu = menu_bar.addMenu('Settings')
+        tools_menu = menu_bar.addMenu('Tools')
 
-        spec_offering_action = config_menu.addAction('Change Special Offering Designations')
-        spec_offering_action.triggered.connect(self.lwg.change_designations)
+        new_action = tools_menu.addAction('New Record')
+        new_action.triggered.connect(self.lwg.create_new_rec)
 
-        new_loc_action = config_menu.addAction('Save Database to New Location')
-        new_loc_action.triggered.connect(self.lwg.save_to_new_loc)
+        delete_action = tools_menu.addAction('Delete Record')
+        delete_action.triggered.connect(self.lwg.del_rec)
 
-        log_action = config_menu.addAction('View Log File')
+        log_action = tools_menu.addAction('View Log File')
         log_action.triggered.connect(self.lwg.view_log)
+
+        config_menu = menu_bar.addMenu('Settings')
 
         name_action = config_menu.addAction('Change Church Name')
         name_action.triggered.connect(self.lwg.change_name)
 
+        spec_offering_action = config_menu.addAction('Change Special Offering Designations')
+        spec_offering_action.triggered.connect(self.lwg.change_designations)
+
         num_checks_action = config_menu.addAction('Change Maximum Number of Checks')
         num_checks_action.triggered.connect(self.lwg.change_num_checks)
+
+        new_loc_action = config_menu.addAction('Save Database to New Location')
+        new_loc_action.triggered.connect(self.lwg.save_to_new_loc)
+
+        help_menu = menu_bar.addMenu('Help')
+
+        help_action = help_menu.addAction('Help')
+        help_action.triggered.connect(self.show_help)
+
+        about_action = help_menu.addAction('About')
+        about_action.triggered.connect(self.show_about)
 
     def build_top_frame(self):
         top_widget = QWidget()
@@ -923,6 +936,166 @@ class GUI(QMainWindow):
 
         self.id_combo_box.blockSignals(False)
         self.date_combo_box.blockSignals(False)
+
+    def show_help(self):
+        self.help_window = QWidget()
+        self.help_window.setFixedSize(1000, 800)
+        window_layout = QVBoxLayout()
+        self.help_window.setLayout(window_layout)
+        try:
+            help_widget = QWidget()
+            help_widget.setMaximumSize(940, 1200)
+            help_layout = QVBoxLayout()
+            help_widget.setLayout(help_layout)
+        except Exception:
+            logging.exception('')
+
+        title_label = QLabel('Weekly Giving Help')
+        title_label.setFont(QFont("Helvetica", 22, QFont.Bold))
+        help_layout.addWidget(title_label)
+
+        separator0 = QWidget()
+        separator0.setMinimumHeight(42)
+        separator0.setStyleSheet('border-bottom: 2px solid black; margin-top: 20px; margin-bottom: 20px')
+        help_layout.addWidget(separator0)
+
+        toolbar_label = QLabel('Toolbar')
+        toolbar_label.setFont(self.bold_font)
+        help_layout.addWidget(toolbar_label)
+
+        toolbar_image_label = QLabel()
+        toolbar_pixmap = QPixmap('resources/navBar.png')
+        toolbar_pixmap = toolbar_pixmap.scaledToWidth(900, Qt.SmoothTransformation)
+        toolbar_image_label.setPixmap(toolbar_pixmap)
+        help_layout.addWidget(toolbar_image_label)
+
+        toolbar_text_label = QLabel()
+        toolbar_text_label.setWordWrap(True)
+        toolbar_text_label.setFont(self.plain_font)
+        toolbar_text_label.setText(
+            '<p>'
+            'At the top of the screen you will see a toolbar. On the left of the bar are buttons you can use to navigate the records you create:'
+            '<ul>'
+            '    <li>Go to the first record</li>'
+            '    <li>Go to the previous record</li>'
+            '    <li>Go to the next record</li>'
+            '    <li>Go to the last record</li>'
+            '    <li>Create a new record</li>'
+            '</ul>'
+            '</p>'
+            '<p>'
+            '    In the center of the toolbar, you can bring up your records by ID number or by date.'
+            '</p>'
+            '<p>'
+            '    Then, on the right-hand side, there are buttons to print the current record, create a graph of giving '
+            '    between certain dates, and save the current record. This save button is only active after changes have '
+            '    been made to the current record.'
+            '</p>'
+        )
+        help_layout.addWidget(toolbar_text_label)
+
+        separator1 = QWidget()
+        separator1.setMinimumHeight(42)
+        separator1.setStyleSheet('border-bottom: 2px solid black; margin-top: 20px; margin-bottom: 20px')
+        help_layout.addWidget(separator1)
+
+        file_label = QLabel('File Menu')
+        file_label.setFont(self.bold_font)
+        help_layout.addWidget(file_label)
+
+        file_image_label = QLabel()
+        file_pixmap = QPixmap('resources/fileMenu.png')
+        file_image_label.setPixmap(file_pixmap)
+        help_layout.addWidget(file_image_label)
+
+        file_text_label = QLabel(
+            'In the file menu, you will find commands to save the current record, '
+            'print the current record, and exit the program.'
+        )
+        file_text_label.setWordWrap(True)
+        file_text_label.setFont(self.plain_font)
+        help_layout.addWidget(file_text_label)
+
+        separator2 = QWidget()
+        separator2.setMinimumHeight(42)
+        separator2.setStyleSheet('border-bottom: 2px solid black; margin-top: 20px; margin-bottom: 20px')
+        help_layout.addWidget(separator2)
+
+        tools_label = QLabel('Tools Menu')
+        tools_label.setFont(self.bold_font)
+        help_layout.addWidget(tools_label)
+
+        tools_image_label = QLabel()
+        tools_pixmap = QPixmap('resources/toolsMenu.png')
+        tools_image_label.setPixmap(tools_pixmap)
+        help_layout.addWidget(tools_image_label)
+
+        tools_text_label = QLabel(
+            'In the tools menu, you will find commands to create a new record, delete the current record, '
+            'or view the log file, which may contain information about program crashes or undesired behavior.'
+        )
+        tools_text_label.setWordWrap(True)
+        tools_text_label.setFont(self.plain_font)
+        help_layout.addWidget(tools_text_label)
+
+        separator3 = QWidget()
+        separator3.setMinimumHeight(42)
+        separator3.setStyleSheet('border-bottom: 2px solid black; margin-top: 20px; margin-bottom: 20px')
+        help_layout.addWidget(separator3)
+
+        settings_label = QLabel('Settings Menu')
+        settings_label.setFont(self.bold_font)
+        help_layout.addWidget(settings_label)
+
+        settings_image_label = QLabel()
+        settings_pixmap = QPixmap('resources/settingsMenu.png')
+        settings_image_label.setPixmap(settings_pixmap)
+        help_layout.addWidget(settings_image_label)
+
+        settings_text_label = QLabel(
+            'In the settings menu, you will find commands to change the name that appears in the program and on your '
+            'printed report, change the names of the special offering designations, change the number of checks that '
+            'appears in the Checks section of your records, and to save the file that stores all your records to a '
+            'different location. Note that there is currently no way to change the number of special offering '
+            'designations, that number being fixed at seven.'
+        )
+        settings_text_label.setWordWrap(True)
+        settings_text_label.setFont(self.plain_font)
+        help_layout.addWidget(settings_text_label)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidget(help_widget)
+        window_layout.addWidget(scroll_area)
+
+        self.help_window.show()
+
+    def show_about(self):
+        self.about_widget = QWidget()
+        about_layout = QVBoxLayout()
+        self.about_widget.setLayout(about_layout)
+
+        about_text = QTextBrowser()
+        about_text.setHtml(
+            'Weekly Giving is free software: you can redistribute it and/or modify it under the terms of the '
+            'GNU General Public License (GNU GPL) published by the Free Software Foundation, either version 3 of the '
+            'License, or (at your option) any later version.<br><br>'
+            'This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the '
+            'implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public '
+            'License for more details.<br><br>'
+            'You should have received a copy of the GNU General Public License along with this program.  If not, see '
+            '<a href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>.<br><br>'
+            'The Weekly Giving program includes Artifex Software\'s GhostScript, licensed under the GNU Affero '
+            'General Public License (GNU AGPL). See <a href="https://www.ghostscript.com/licensing/index.html">'
+            'https://www.ghostscript.com/licensing/index.html</a> for more information.<br><br>'
+            'This program is a work-in-progress by a guy who is not, in no way, a professional programmer. If you run '
+            'into any problems, unexpected behavior, missing features, or attempts to assimilate your unique biological '
+            'and technological distinctiveness, email <a href="mailto:pastorjeremywilson@gmail.com">'
+            'pastorjeremywilson@gmail.com</a>'
+        )
+        about_text.setFont(self.plain_font)
+        about_text.setMinimumSize(600, 400)
+        about_layout.addWidget(about_text)
+        self.about_widget.show()
 
 class CustomDateLineEdit(QLineEdit):
     def __init__(self):
