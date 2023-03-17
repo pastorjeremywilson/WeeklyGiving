@@ -79,7 +79,7 @@ class GUI(QMainWindow):
 
     def init_components(self):
         self.setWindowTitle('Weekly Giving')
-        self.setWindowIcon(QIcon('resources/unityIcon.ico'))
+        self.setWindowIcon(QIcon('resources/icon.ico'))
 
         main_widget = QWidget()
         main_widget.setStyleSheet('background-color: ' + self.dark_green)
@@ -720,7 +720,7 @@ class GUI(QMainWindow):
             lineHeight = 16
 
             appData = os.getenv('APPDATA')
-            print_file_loc = appData + '/LBCNWeeklyGiving/print.pdf'
+            print_file_loc = appData + '/WeeklyGiving/print.pdf'
             self.lwg.write_log('print_file_loc: ' + print_file_loc)
 
             currentLine = firstLine

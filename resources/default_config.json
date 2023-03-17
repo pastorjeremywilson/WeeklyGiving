@@ -1,5 +1,5 @@
 {
-        "fileLoc": "C:/Users/pasto/Desktop/lbcn_weekly_giving.db",
+        "fileLoc": "weekly_giving.db",
         "specialDesignations": {
                 "spec1": "Benevolence Fund",
                 "spec2": "Women's Ministry",
@@ -10,5 +10,5 @@
                 "spec7": "Other"
         },
         "maxChecks": 30,
-        "name": "LBCN"
+        "name": "LBC"
 }

@@ -39,9 +39,10 @@ from PyQt5.QtWidgets import QApplication, QFileDialog, QDialog, QGridLayout, QCa
 from gui import GUI
 
 
-class LBCNWeeklyGiving:
+class WeeklyGiving:
     app = None
     DATABASE = None
+    table_name = None
     gui = None
     ids = None
     dates = None
@@ -57,13 +58,13 @@ class LBCNWeeklyGiving:
         appData = os.getenv('APPDATA')
         self.write_log('APPDATA location: ' + appData)
 
-        self.config_file_loc = appData + '/LBCNWeeklyGiving/config.json'
+        self.config_file_loc = appData + '/WeeklyGiving/config.json'
         self.write_log('Config file location: ' + self.config_file_loc)
 
         if not exists(self.config_file_loc): # Copy default config file if not found
-            if not exists(appData + '/LBCNWeeklyGiving'):
+            if not exists(appData + '/WeeklyGiving'):
                 self.write_log('Creating %APPDATA%/WeeklyGiving folder')
-                os.mkdir(appData + '/LBCNWeeklyGiving')
+                os.mkdir(appData + '/WeeklyGiving')
             self.write_log('Copying config file to APPDATA folder')
             shutil.copy('resources/default_config.json', self.config_file_loc)
 
@@ -78,12 +79,13 @@ class LBCNWeeklyGiving:
 
         if exists(file_loc):
             self.DATABASE = file_loc
+            self.table_name = 'weekly_giving'
             self.write_log('Database located at ' + self.DATABASE)
         else:
             response = QMessageBox.question(
                 None,
                 'File Not Found',
-                'Database file not found. Would you like to locate it?',
+                'Database file not found. Would you like to locate it? (Choose "No" to create a new database)',
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel)
             self.write_log('Response to locating database file: ' + str(response))
 
@@ -116,7 +118,7 @@ class LBCNWeeklyGiving:
         self.write_log('Retreiving ID list')
         conn = sqlite3.connect(self.DATABASE)
         cur = conn.cursor()
-        ex = cur.execute('SELECT ID FROM lbcn_giving_database')
+        ex = cur.execute('SELECT ID FROM ' + self.table_name)
         result = ex.fetchall()
         conn.close()
 
@@ -129,7 +131,7 @@ class LBCNWeeklyGiving:
         self.write_log('Retreiving Date List')
         conn = sqlite3.connect(self.DATABASE)
         cur = conn.cursor()
-        result = cur.execute('SELECT Date, ID FROM lbcn_giving_database').fetchall()
+        result = cur.execute('SELECT Date, ID FROM ' + self.table_name).fetchall()
         dates = []
         conn.close()
 
@@ -159,7 +161,7 @@ class LBCNWeeklyGiving:
             try:
                 con = sqlite3.connect(self.DATABASE)
                 cur = con.cursor()
-                sql = 'SELECT * FROM lbcn_giving_database WHERE id = ' + str(self.ids[self.current_id_index])
+                sql = 'SELECT * FROM ' + self.table_name + ' WHERE id = ' + str(self.ids[self.current_id_index])
                 ex = cur.execute(sql)
                 column_names = [description[0] for description in ex.description]
                 result = ex.fetchall()[0]
@@ -230,8 +232,8 @@ class LBCNWeeklyGiving:
             try:
                 conn = sqlite3.connect(self.DATABASE)
                 cur = conn.cursor()
-                sql = 'INSERT INTO lbcn_giving_database values (' + values + ')'
-                self.write_log('Insert command from LBCNWeeklyGiving.create_new_rec: ' + sql)
+                sql = 'INSERT INTO ' + self.table_name + ' values (' + values + ')'
+                self.write_log('Insert command from WeeklyGiving.create_new_rec: ' + sql)
                 cur.execute(sql)
                 conn.commit()
 
@@ -239,7 +241,7 @@ class LBCNWeeklyGiving:
                 self.gui.date_combo_box.addItem(date, (1, newID))
                 self.ids.append(newID)
 
-                sql = 'SELECT * FROM lbcn_giving_database WHERE ID = ' + str(newID)
+                sql = 'SELECT * FROM ' + self.table_name + ' WHERE ID = ' + str(newID)
                 cur.execute(sql)
                 result = cur.fetchall()
 
@@ -262,7 +264,7 @@ class LBCNWeeklyGiving:
             try:
                 conn = sqlite3.connect(self.DATABASE)
                 cur = conn.cursor()
-                sql = 'DELETE FROM lbcn_giving_database WHERE ID = ' + self.gui.id_num_label.text()
+                sql = 'DELETE FROM ' + self.table_name + ' WHERE ID = ' + self.gui.id_num_label.text()
                 cur.execute(sql)
                 conn.commit()
 
@@ -271,7 +273,7 @@ class LBCNWeeklyGiving:
                 print('getting last record')
                 con = sqlite3.connect(self.DATABASE)
                 cur = con.cursor()
-                sql = 'select * from lbcn_giving_database WHERE ID = ' + str(self.ids[len(self.ids) - 1])
+                sql = 'select * from ' + self.table_name + ' WHERE ID = ' + str(self.ids[len(self.ids) - 1])
                 cur.execute(sql)
                 result = cur.fetchall()
 
@@ -289,7 +291,7 @@ class LBCNWeeklyGiving:
                 self.write_log('*Critical error from WeeklyGiving.get_by_id: ' + str(err))
         
     def save_rec(self):
-        sql = 'UPDATE lbcn_giving_database SET '
+        sql = 'UPDATE ' + self.table_name + ' SET '
         sql += 'id = "' + self.gui.id_num_label.text()
         sql += '", prepared_by = "' + self.gui.prep_line_edit.text()
         sql += '", date = "' + self.gui.date_line_edit.text()
@@ -512,7 +514,7 @@ class LBCNWeeklyGiving:
 
                 conn = sqlite3.connect(self.DATABASE)
                 cur = conn.cursor()
-                result = cur.execute('SELECT * FROM lbcn_giving_database WHERE id=' + str(self.ids[0]))
+                result = cur.execute('SELECT * FROM ' + self.table_name + ' WHERE id=' + str(self.ids[0]))
                 column_names = [description[0] for description in result.description]
 
                 highest_num = -1
@@ -527,12 +529,12 @@ class LBCNWeeklyGiving:
                     for i in range(highest_num, new_max_checks - 1):
                         new_column = 'checks_' + str(i + 1)
                         added_columns.append(new_column)
-                        sql = 'ALTER TABLE lbcn_giving_database ADD COLUMN ' + new_column + ' TEXT;'
+                        sql = 'ALTER TABLE ' + self.table_name + ' ADD COLUMN ' + new_column + ' TEXT;'
                         cur.execute(sql)
                         conn.commit()
 
                     for column in added_columns:
-                        sql = 'UPDATE lbcn_giving_database SET ' + column + ' = "0.00"'
+                        sql = 'UPDATE ' + self.table_name + ' SET ' + column + ' = "0.00"'
                         cur.execute(sql)
                         conn.commit()
 
@@ -550,7 +552,7 @@ class LBCNWeeklyGiving:
 
                     if response == QMessageBox.Yes:
                         for i in range(new_max_checks, highest_num + 1):
-                            sql = 'ALTER TABLE lbcn_giving_database DROP COLUMN "checks_' + str(i) + '";'
+                            sql = 'ALTER TABLE ' + self.table_name + ' DROP COLUMN "checks_' + str(i) + '";'
                             cur.execute(sql)
                             conn.commit()
                         conn.close()
@@ -630,7 +632,7 @@ class LBCNWeeklyGiving:
                         + text,
                     QMessageBox.Ok
                 )
-            logFileLoc = os.getenv('APPDATA') + '/LBCNWeeklyGiving/log.txt'
+            logFileLoc = os.getenv('APPDATA') + '/WeeklyGiving/log.txt'
             logfile = open(logFileLoc, 'a')
             logfile.write(str(datetime.today()) + ': ' + text + '\n')
             logfile.close()
@@ -639,7 +641,7 @@ class LBCNWeeklyGiving:
 
     def view_log(self):
         try:
-            with open(os.getenv('APPDATA') + '/LBCNWeeklyGiving/log.txt', 'r') as file:
+            with open(os.getenv('APPDATA') + '/WeeklyGiving/log.txt', 'r') as file:
                 log_text = file.read()
         except OSError as err:
             self.write_log('*Critical error from WeeklyGiving.change_designations: ' + str(err))
@@ -720,7 +722,7 @@ class LBCNWeeklyGiving:
             end = end_date.selectedDate()
             connection = sqlite3.connect(self.DATABASE)
             cursor = connection.cursor()
-            sql = 'SELECT Date, Total_Deposit from lbcn_giving_database'
+            sql = 'SELECT Date, Total_Deposit from ' + self.table_name
             result = cursor.execute(sql).fetchall()
 
             filtered_dates = []
@@ -749,5 +751,5 @@ if __name__ == '__main__':
         app = QApplication(sys.argv)
         if lwg:
             lwg.gui.destroy()
-        lwg = LBCNWeeklyGiving(app)
+        lwg = WeeklyGiving(app)
         exit_code = lwg.run_app()
