@@ -1,2 +1,1 @@
-Add code to create new database
-Write database location to config.json when creating new or finding old
+Write database location to config.json when finding old

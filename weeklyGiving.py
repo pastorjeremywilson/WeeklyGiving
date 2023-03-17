@@ -56,15 +56,23 @@ class WeeklyGiving:
 
         # Check to see if config file exists in user's APPDATA folder
         appData = os.getenv('APPDATA')
+
+        new_dir = False
+        if not exists(appData + '/WeeklyGiving'):
+            new_dir = True
+            os.mkdir(appData + '/WeeklyGiving')
+            with open(appData + '/WeeklyGiving/log.txt', 'w') as file:
+                pass
+
+        if new_dir:
+            self.write_log('Creating %APPDATA%/WeeklyGiving folder and log.txt')
+
         self.write_log('APPDATA location: ' + appData)
 
         self.config_file_loc = appData + '/WeeklyGiving/config.json'
         self.write_log('Config file location: ' + self.config_file_loc)
 
         if not exists(self.config_file_loc): # Copy default config file if not found
-            if not exists(appData + '/WeeklyGiving'):
-                self.write_log('Creating %APPDATA%/WeeklyGiving folder')
-                os.mkdir(appData + '/WeeklyGiving')
             self.write_log('Copying config file to APPDATA folder')
             shutil.copy('resources/default_config.json', self.config_file_loc)
 
@@ -99,7 +107,104 @@ class WeeklyGiving:
                 with open(self.config_file_loc, 'w') as file:
                     file.write(json.dumps(config_json))
             elif response == QMessageBox.No:
-                print('add code to create a blank database')
+                self.DATABASE = appData + '/WeeklyGiving/weekly_giving.db'
+                self.table_name = 'weekly_giving'
+
+                config_json['fileLoc'] = self.DATABASE
+                with open(self.config_file_loc, 'w') as file:
+                    file.write(json.dumps(config_json))
+
+                sql = '''
+                    CREATE TABLE "weekly_giving" (
+                    "id"	INTEGER,
+                    "date"	TEXT,
+                    "prepared_by"	TEXT,
+                    "bills_100"	TEXT,
+                    "bills_50"	TEXT,
+                    "bills_20"	TEXT,
+                    "bills_10"	TEXT,
+                    "bills_5"	TEXT,
+                    "bills_1"	TEXT,
+                    "coins_100"	TEXT,
+                    "coins_25"	TEXT,
+                    "coins_10"	TEXT,
+                    "coins_5"	TEXT,
+                    "coins_1"	TEXT,
+                    "spec1"	TEXT,
+                    "spec2"	TEXT,
+                    "spec3"	TEXT,
+                    "spec4"	TEXT,
+                    "spec5"	TEXT,
+                    "spec6"	TEXT,
+                    "spec7"	TEXT,
+                    "checks_0"	TEXT,
+                    "checks_1"	TEXT,
+                    "checks_2"	TEXT,
+                    "checks_3"	TEXT,
+                    "checks_4"	TEXT,
+                    "checks_5"	TEXT,
+                    "checks_6"	TEXT,
+                    "checks_7"	TEXT,
+                    "checks_8"	TEXT,
+                    "checks_9"	TEXT,
+                    "checks_10"	TEXT,
+                    "checks_11"	TEXT,
+                    "checks_12"	TEXT,
+                    "checks_13"	TEXT,
+                    "checks_14"	TEXT,
+                    "checks_15"	TEXT,
+                    "checks_16"	TEXT,
+                    "checks_17"	TEXT,
+                    "checks_18"	TEXT,
+                    "checks_19"	TEXT,
+                    "checks_20"	TEXT,
+                    "checks_21"	TEXT,
+                    "checks_22"	TEXT,
+                    "checks_23"	TEXT,
+                    "checks_24"	TEXT,
+                    "checks_25"	TEXT,
+                    "checks_26"	TEXT,
+                    "checks_27"	TEXT,
+                    "checks_28"	TEXT,
+                    "checks_29"	TEXT,
+                    "notes"	TEXT,
+                    "quantity_of_checks"	TEXT,
+                    "total_designated_offerings"	TEXT,
+                    "bills_total"	TEXT,
+                    "coins_total"	TEXT,
+                    "checks_total"	TEXT,
+                    "total_deposit"	TEXT,
+                    PRIMARY KEY("id" AUTOINCREMENT)
+                )
+                '''
+                conn = sqlite3.connect(self.DATABASE)
+                cursor = conn.cursor()
+                cursor.execute(sql)
+                conn.commit()
+                conn.close()
+
+                date = datetime.today().strftime('%Y-%m-%d')
+
+                values = '"0",'
+                for i in range(1, 58):
+                    if i == 1:
+                        values += '"' + date + '",'
+                    elif i == 2 or i == 51:
+                        values += '"",'
+                    else:
+                        values += '"0",'
+
+                values = values[0:len(values) - 1]
+
+                try:
+                    conn = sqlite3.connect(self.DATABASE)
+                    cur = conn.cursor()
+                    sql = 'INSERT INTO ' + self.table_name + ' values (' + values + ')'
+                    cur.execute(sql)
+                    conn.commit()
+                    conn.close()
+                except (sqlite3.OperationalError, sqlite3.DatabaseError, sqlite3.NotSupportedError) as err:
+                    self.write_log('*Critical error from WeeklyGiving.__init__: ' + str(err))
             else:
                 quit()
 
@@ -396,17 +501,12 @@ class WeeklyGiving:
             for widget in dialog.findChildren(QLineEdit):
                 designations.append(widget.text())
 
-            print('designations:', designations)
-
             try:
                 with open(self.config_file_loc, 'r') as file:
                     config_json = json.loads(file.read())
 
                 for i in range(len(designations)):
-                    print('spec' + str(i + 1) + ' = ' + str(designations[i]))
                     config_json['specialDesignations']['spec' + str(i + 1)] = str(designations[i])
-
-                print('config_json:', config_json)
 
                 with open(self.config_file_loc, 'w') as file:
                     file.write(json.dumps(config_json))
@@ -564,7 +664,6 @@ class WeeklyGiving:
                 self.write_log('*Critical error in WeeklyGiving.change_name: ' + str(err))
             except Exception:
                 logging.exception('')
-
 
     def save_to_new_loc(self):
         file = QFileDialog().getSaveFileName(
