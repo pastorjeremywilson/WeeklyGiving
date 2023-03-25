@@ -7,7 +7,7 @@
   },
   {
    "optionDest": "filenames",
-   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/LBCNWeeklyGiving/LBCNWeeklyGiving.py"
+   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/WeeklyGiving/WeeklyGiving.py"
   },
   {
    "optionDest": "onefile",
@@ -19,7 +19,7 @@
   },
   {
    "optionDest": "icon_file",
-   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/LBCNWeeklyGiving/resources/icon.ico"
+   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/WeeklyGiving/resources/icon.ico"
   },
   {
    "optionDest": "ascii",
@@ -71,35 +71,36 @@
   },
   {
    "optionDest": "datas",
-   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/LBCNWeeklyGiving/gsdll64.dll;."
+   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/WeeklyGiving/gsdll64.dll;."
   },
   {
    "optionDest": "datas",
-   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/LBCNWeeklyGiving/gsdll64.lib;."
+   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/WeeklyGiving/gsdll64.lib;."
   },
   {
    "optionDest": "datas",
-   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/LBCNWeeklyGiving/gsprint.exe;."
+   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/WeeklyGiving/gsprint.exe;."
   },
   {
    "optionDest": "datas",
-   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/LBCNWeeklyGiving/gswin64.exe;."
+   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/WeeklyGiving/gswin64.exe;."
   },
   {
    "optionDest": "datas",
-   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/LBCNWeeklyGiving/gswin64c.exe;."
+   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/WeeklyGiving/gswin64c.exe;."
   },
   {
    "optionDest": "datas",
-   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/LBCNWeeklyGiving/reportlab;reportlab/"
+   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/WeeklyGiving/reportlab;reportlab/"
   },
   {
    "optionDest": "datas",
-   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/LBCNWeeklyGiving/resources;resources/"
+   "value": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/WeeklyGiving/resources;resources/"
   }
  ],
  "nonPyinstallerOptions": {
   "increaseRecursionLimit": true,
-  "manualArguments": ""
+  "manualArguments": "",
+  "outputDirectory": "C:/Users/pasto/Nextcloud/Documents/Python Workspace/WeeklyGiving/compile configs and installers/output"
  }
 }

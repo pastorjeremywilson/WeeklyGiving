@@ -103,6 +103,7 @@ class WeeklyGiving:
                 db_file = file_dialog.getOpenFileName(None, 'Open Database File', appData, 'SQLite .db File (*.db)')
 
                 self.DATABASE = db_file[0]
+                self.table_name = 'weekly_giving'
                 config_json['fileLoc'] = db_file[0]
                 with open(self.config_file_loc, 'w') as file:
                     file.write(json.dumps(config_json))
@@ -346,11 +347,7 @@ class WeeklyGiving:
                 self.gui.date_combo_box.addItem(date, (1, newID))
                 self.ids.append(newID)
 
-                sql = 'SELECT * FROM ' + self.table_name + ' WHERE ID = ' + str(newID)
-                cur.execute(sql)
-                result = cur.fetchall()
-
-                self.gui.fill_values(result[0])
+                self.get_by_id(newID)
 
                 self.gui.changes = False
                 self.gui.save_button.setEnabled(False)
@@ -375,14 +372,8 @@ class WeeklyGiving:
 
                 self.ids = self.get_ids()
                 self.gui.refresh_combo_boxes()
-                print('getting last record')
-                con = sqlite3.connect(self.DATABASE)
-                cur = con.cursor()
-                sql = 'select * from ' + self.table_name + ' WHERE ID = ' + str(self.ids[len(self.ids) - 1])
-                cur.execute(sql)
-                result = cur.fetchall()
 
-                self.gui.fill_values(result[0])
+                self.get_last_rec()
 
                 self.gui.next_rec_button.setEnabled(False)
 

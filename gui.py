@@ -592,54 +592,57 @@ class GUI(QMainWindow):
         self.recalc()
 
     def fill_values(self, result_dictionary):
-        self.id_combo_box.blockSignals(True)
-        self.date_combo_box.blockSignals(True)
-        self.id_combo_box.setCurrentText(str(result_dictionary['id']))
-        self.date_combo_box.setCurrentText(result_dictionary['date'])
-        self.id_combo_box.blockSignals(False)
-        self.date_combo_box.blockSignals(False)
+        try:
+            self.id_combo_box.blockSignals(True)
+            self.date_combo_box.blockSignals(True)
+            self.id_combo_box.setCurrentText(str(result_dictionary['id']))
+            self.date_combo_box.setCurrentText(result_dictionary['date'])
+            self.id_combo_box.blockSignals(False)
+            self.date_combo_box.blockSignals(False)
 
-        self.date_line_edit.setText(result_dictionary['date'])
-        self.prep_line_edit.setText(result_dictionary['prepared_by'])
-        self.id_num_label.setText(str(result_dictionary['id']))
+            self.date_line_edit.setText(result_dictionary['date'])
+            self.prep_line_edit.setText(result_dictionary['prepared_by'])
+            self.id_num_label.setText(str(result_dictionary['id']))
 
-        self.bills_100_line_edit.setText(result_dictionary['bills_100'])
-        self.bills_50_line_edit.setText(result_dictionary['bills_50'])
-        self.bills_20_line_edit.setText(result_dictionary['bills_20'])
-        self.bills_10_line_edit.setText(result_dictionary['bills_10'])
-        self.bills_5_line_edit.setText(result_dictionary['bills_5'])
-        self.bills_1_line_edit.setText(result_dictionary['bills_1'])
+            self.bills_100_line_edit.setText(result_dictionary['bills_100'])
+            self.bills_50_line_edit.setText(result_dictionary['bills_50'])
+            self.bills_20_line_edit.setText(result_dictionary['bills_20'])
+            self.bills_10_line_edit.setText(result_dictionary['bills_10'])
+            self.bills_5_line_edit.setText(result_dictionary['bills_5'])
+            self.bills_1_line_edit.setText(result_dictionary['bills_1'])
 
-        self.dollar_line_edit.setText(result_dictionary['coins_100'])
-        self.quarter_line_edit.setText(result_dictionary['coins_25'])
-        self.dime_line_edit.setText(result_dictionary['coins_10'])
-        self.nickel_line_edit.setText(result_dictionary['coins_5'])
-        self.penny_line_edit.setText(result_dictionary['coins_1'])
+            self.dollar_line_edit.setText(result_dictionary['coins_100'])
+            self.quarter_line_edit.setText(result_dictionary['coins_25'])
+            self.dime_line_edit.setText(result_dictionary['coins_10'])
+            self.nickel_line_edit.setText(result_dictionary['coins_5'])
+            self.penny_line_edit.setText(result_dictionary['coins_1'])
 
-        specials = []
-        for key in result_dictionary:
-            if 'spec' in key:
-                specials.append(result_dictionary[key])
+            specials = []
+            for key in result_dictionary:
+                if 'spec' in key:
+                    specials.append(result_dictionary[key])
 
-        index = 0
-        for widget in self.findChildren(QLineEdit, 'special_edit'):
-            widget.setText(str('{:.2f}'.format(float(specials[index]))))
-            index += 1
+            index = 0
+            for widget in self.findChildren(QLineEdit, 'special_edit'):
+                widget.setText(str('{:.2f}'.format(float(specials[index]))))
+                index += 1
 
-        for key in result_dictionary:
-            if 'check' in key and not 'quantity' in key and not 'tot' in key:
-                self.findChild(QLineEdit, key).setText(str('{:,.2f}'.format((float(result_dictionary[key])))))
+            for key in result_dictionary:
+                if 'check' in key and not 'quantity' in key and not 'tot' in key:
+                    self.findChild(QLineEdit, key).setText(str('{:,.2f}'.format((float(result_dictionary[key].replace(',', ''))))))
 
-        notes = result_dictionary['notes']
-        notes = notes.replace('<apost>', '\'')
-        notes = notes.replace('<quot>', '\"')
-        self.notes_edit.setPlainText(notes)
+            notes = result_dictionary['notes']
+            notes = notes.replace('<apost>', '\'')
+            notes = notes.replace('<quot>', '\"')
+            self.notes_edit.setPlainText(notes)
 
-        self.num_checks_total_label.setText(str(result_dictionary['quantity_of_checks']))
+            self.num_checks_total_label.setText(str(result_dictionary['quantity_of_checks']))
 
-        self.recalc()
+            self.recalc()
 
-        self.changes = False
+            self.changes = False
+        except Exception:
+            logging.exception('')
 
     def recalc(self):
         hundreds, fifties, twenties, tens, fives, ones = 0, 0, 0, 0, 0, 0
@@ -672,23 +675,34 @@ class GUI(QMainWindow):
 
         coins_total = float(dollars + (quarters * 0.25) + (dimes * 0.1) + (nickels * 0.05) + (pennies * 0.01))
 
+        index = 0
         checks_total = 0.0
         num_checks = 0
         for widget in self.findChildren(QLineEdit, QRegExp('check*')):
             try:
-                check = float(widget.text())
-                checks_total += check
-                if check > 0:
+                amount = widget.text().replace(',', '')
+                checks_total += float(amount)
+                if float(amount) > 0:
                     num_checks += 1
+                index += 1
             except ValueError:
-                pass
+                if len(amount) > 0:
+                    QMessageBox.information(self, 'Bad Number', 'Check number '
+                                            + str(index + 1)
+                                            + ' appears to contain a bad value. Check that '
+                                              'it contains no letters or spaces')
 
         special_total = 0.0
-        for widget in self.findChildren(QTextEdit, 'special_edit'):
+        for widget in self.findChildren(QLineEdit, 'special_edit'):
             try:
-                special_total += float(widget.text())
+                amount = widget.text().replace(',', '')
+                special_total += float(amount)
             except ValueError:
-                pass
+                if len(amount) > 0:
+                    QMessageBox.information(self, 'Bad Number', 'The number in '
+                                            + widget.objectName()
+                                            + ' appears to contain a bad value. Check that '
+                                              'it contains no letters or spaces')
 
         self.num_checks_total_label.setText(str(num_checks))
         self.bills_total_label.setText(str('{:,.2f}'.format(float(bills_total))))
@@ -853,7 +867,7 @@ class GUI(QMainWindow):
             canvas.setFont('Helvetica', 11)
             currentLine = topLineofEntries
             for num in checksArray:
-                canvas.drawRightString(column5, currentLine, '${:,.2f}'.format(float(num)))
+                canvas.drawRightString(column5, currentLine, '${:,.2f}'.format(float(num.replace(',', ''))))
                 currentLine -= lineHeight
 
             currentLine = 300
@@ -906,10 +920,10 @@ class GUI(QMainWindow):
             CREATE_NO_WINDOW = 0x08000000
             p = subprocess.Popen(
                 [
-                    'gsprint.exe',
+                    'ghostscript/gsprint.exe',
                     print_file_loc,
                     '-ghostscript',
-                    'gswin64.exe',
+                    'ghostscript/gswin64.exe',
                     '-query'],
                 creationflags=CREATE_NO_WINDOW,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -1120,6 +1134,9 @@ class CustomDateLineEdit(QLineEdit):
 class CustomCurrencyLineEdit(QLineEdit):
     def __init__(self):
         super().__init__()
+        self.setAlignment(Qt.AlignRight)
+        self.setMaximumWidth(150)
+        self.setStyleSheet('background-color: white')
 
     def focusOutEvent(self, evt):
         amount = self.text().strip()
@@ -1140,6 +1157,9 @@ class CustomCurrencyLineEdit(QLineEdit):
 class CustomIntegerLineEdit(QLineEdit):
     def __init__(self):
         super().__init__()
+        self.setAlignment(Qt.AlignRight)
+        self.setMaximumWidth(100)
+        self.setStyleSheet('background-color: white')
 
     def focusOutEvent(self, evt):
         number = self.text().strip()
