@@ -26,17 +26,35 @@ https://www.ghostscript.com/licensing/index.html for more information.
 import datetime
 
 import matplotlib.pyplot as plot
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import QVBoxLayout, QLabel, QWidget
 
 
 class LineGraph:
-    def __init__(self, pairs):
+    pairs = None
+    def __init__(self):
         self.x = []
         self.y = []
-        for item in pairs:
+
+        self.wait_dialog = QWidget()
+        self.wait_dialog.setWindowFlags(Qt.FramelessWindowHint)
+        layout = QVBoxLayout()
+        self.wait_dialog.setLayout(layout)
+        self.wait_dialog.setStyleSheet('background-color: #00641e')
+
+        label = QLabel('Creating Graph...')
+        label.setFont(QFont('Helvetica', 16, QFont.Bold))
+        label.setStyleSheet('color: white')
+        layout.addWidget(label)
+
+        self.wait_dialog.show()
+
+    def graph_values_by_date_line(self):
+        for item in self.pairs:
             self.x.append(item[0])
             self.y.append(item[1])
 
-    def graph_values_by_date_line(self):
         x_vals = []
         y_vals = []
         total = 0.0
@@ -71,6 +89,7 @@ class LineGraph:
 
         figManager = plot.get_current_fig_manager()
         figManager.window.showMaximized()
+        self.wait_dialog.destroy()
         plot.show()
 
     def graph_values_by_date_bar(self):
@@ -109,4 +128,5 @@ class LineGraph:
 
         figManager = plot.get_current_fig_manager()
         figManager.window.showMaximized()
+        self.wait_dialog.destroy()
         plot.show()

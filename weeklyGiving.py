@@ -642,6 +642,7 @@ class WeeklyGiving (QThread):
         self.log_dialog.show()
 
     def graph_by_date(self):
+        print('creating dialog')
         dialog = QDialog()
         layout = QGridLayout()
         dialog.setLayout(layout)
@@ -695,6 +696,10 @@ class WeeklyGiving (QThread):
         answer = dialog.exec()
 
         if answer == 1:
+            from graphThis import LineGraph
+            lg = LineGraph()
+            self.app.processEvents()
+
             start = start_date.selectedDate()
             end = end_date.selectedDate()
             connection = sqlite3.connect(self.DATABASE)
@@ -711,11 +716,11 @@ class WeeklyGiving (QThread):
 
             if len(filtered_dates) > 0:
                 try:
-                    from graphThis import LineGraph
-                    lg = LineGraph(filtered_dates)
                     if line_button.isChecked():
+                        lg.pairs = filtered_dates
                         lg.graph_values_by_date_line()
                     else:
+                        lg.pairs = filtered_dates
                         lg.graph_values_by_date_bar()
                 except Exception:
                     logging.exception('')
