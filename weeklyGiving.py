@@ -32,14 +32,18 @@ from os.path import exists
 import os
 import shutil
 
-from PyQt5.QtCore import QDate, Qt, QRegExp
+from PyQt5.QtCore import QDate, Qt, QRegExp, QThread, pyqtSignal
+from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QFileDialog, QDialog, QGridLayout, QCalendarWidget, QPushButton, QLabel, \
     QMessageBox, QButtonGroup, QRadioButton, QWidget, QHBoxLayout, QLineEdit, QTextEdit, QVBoxLayout, QSpinBox
 
 from gui import GUI
 
 
-class WeeklyGiving:
+class WeeklyGiving (QThread):
+    change_text = pyqtSignal(str)
+    finished = pyqtSignal()
+
     app = None
     DATABASE = None
     table_name = None
@@ -50,188 +54,68 @@ class WeeklyGiving:
     column_pairs = None
     current_id_index = None
     startup = None
-    
+
     def __init__(self, app):
         self.app = app
+        super().__init__()
+    
+    def run(self):
+        try:
+            self.change_text.emit('Getting Directories')
+            # Check to see if config file exists in user's APPDATA folder
+            self.appData = os.getenv('APPDATA')
 
-        # Check to see if config file exists in user's APPDATA folder
-        appData = os.getenv('APPDATA')
+            new_dir = False
+            if not exists(self.appData + '/WeeklyGiving'):
+                new_dir = True
+                os.mkdir(self.appData + '/WeeklyGiving')
+                with open(self.appData + '/WeeklyGiving/log.txt', 'w') as file:
+                    pass
 
-        new_dir = False
-        if not exists(appData + '/WeeklyGiving'):
-            new_dir = True
-            os.mkdir(appData + '/WeeklyGiving')
-            with open(appData + '/WeeklyGiving/log.txt', 'w') as file:
-                pass
+            if new_dir:
+                self.write_log('Creating %APPDATA%/WeeklyGiving folder and log.txt')
 
-        if new_dir:
-            self.write_log('Creating %APPDATA%/WeeklyGiving folder and log.txt')
+            self.write_log('APPDATA location: ' + self.appData)
 
-        self.write_log('APPDATA location: ' + appData)
+            self.change_text.emit('Checking Files')
 
-        self.config_file_loc = appData + '/WeeklyGiving/config.json'
-        self.write_log('Config file location: ' + self.config_file_loc)
+            self.config_file_loc = self.appData + '/WeeklyGiving/config.json'
+            self.write_log('Config file location: ' + self.config_file_loc)
 
-        if not exists(self.config_file_loc): # Copy default config file if not found
-            self.write_log('Copying config file to APPDATA folder')
-            shutil.copy('resources/default_config.json', self.config_file_loc)
+            if not exists(self.config_file_loc): # Copy default config file if not found
+                self.write_log('Copying config file to APPDATA folder')
+                shutil.copy('resources/default_config.json', self.config_file_loc)
 
-        # read the config file as json
-        self.write_log('Opening config file from ' + self.config_file_loc)
-        with open(self.config_file_loc, 'r') as file:
-            config_json = json.loads(file.read())
-        file_loc = config_json['fileLoc']
-        self.spec_designations = config_json['specialDesignations']
-        self.max_checks = config_json['maxChecks']
-        self.name = config_json['name']
+            # read the config file as json
+            self.write_log('Opening config file from ' + self.config_file_loc)
+            with open(self.config_file_loc, 'r') as file:
+                self.config_json = json.loads(file.read())
+            self.file_loc = self.config_json['fileLoc']
+            self.spec_designations = self.config_json['specialDesignations']
+            self.max_checks = self.config_json['maxChecks']
+            self.name = self.config_json['name']
 
-        if exists(file_loc):
-            self.DATABASE = file_loc
-            self.table_name = 'weekly_giving'
-            self.write_log('Database located at ' + self.DATABASE)
-        else:
-            response = QMessageBox.question(
-                None,
-                'File Not Found',
-                'Database file not found. Would you like to locate it? (Choose "No" to create a new database)',
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel)
-            self.write_log('Response to locating database file: ' + str(response))
+            self.change_text.emit('Starting GUI')
 
-            if response == QMessageBox.Yes:
-                file_dialog = QFileDialog()
-                file_dialog.setModal(True)
-                db_file = file_dialog.getOpenFileName(None, 'Open Database File', appData, 'SQLite .db File (*.db)')
-
-                self.DATABASE = db_file[0]
-                self.table_name = 'weekly_giving'
-                config_json['fileLoc'] = db_file[0]
-                with open(self.config_file_loc, 'w') as file:
-                    file.write(json.dumps(config_json))
-            elif response == QMessageBox.No:
-                self.DATABASE = appData + '/WeeklyGiving/weekly_giving.db'
-                self.table_name = 'weekly_giving'
-
-                config_json['fileLoc'] = self.DATABASE
-                with open(self.config_file_loc, 'w') as file:
-                    file.write(json.dumps(config_json))
-
-                sql = '''
-                    CREATE TABLE "weekly_giving" (
-                    "id"	INTEGER,
-                    "date"	TEXT,
-                    "prepared_by"	TEXT,
-                    "bills_100"	TEXT,
-                    "bills_50"	TEXT,
-                    "bills_20"	TEXT,
-                    "bills_10"	TEXT,
-                    "bills_5"	TEXT,
-                    "bills_1"	TEXT,
-                    "coins_100"	TEXT,
-                    "coins_25"	TEXT,
-                    "coins_10"	TEXT,
-                    "coins_5"	TEXT,
-                    "coins_1"	TEXT,
-                    "spec1"	TEXT,
-                    "spec2"	TEXT,
-                    "spec3"	TEXT,
-                    "spec4"	TEXT,
-                    "spec5"	TEXT,
-                    "spec6"	TEXT,
-                    "spec7"	TEXT,
-                    "checks_0"	TEXT,
-                    "checks_1"	TEXT,
-                    "checks_2"	TEXT,
-                    "checks_3"	TEXT,
-                    "checks_4"	TEXT,
-                    "checks_5"	TEXT,
-                    "checks_6"	TEXT,
-                    "checks_7"	TEXT,
-                    "checks_8"	TEXT,
-                    "checks_9"	TEXT,
-                    "checks_10"	TEXT,
-                    "checks_11"	TEXT,
-                    "checks_12"	TEXT,
-                    "checks_13"	TEXT,
-                    "checks_14"	TEXT,
-                    "checks_15"	TEXT,
-                    "checks_16"	TEXT,
-                    "checks_17"	TEXT,
-                    "checks_18"	TEXT,
-                    "checks_19"	TEXT,
-                    "checks_20"	TEXT,
-                    "checks_21"	TEXT,
-                    "checks_22"	TEXT,
-                    "checks_23"	TEXT,
-                    "checks_24"	TEXT,
-                    "checks_25"	TEXT,
-                    "checks_26"	TEXT,
-                    "checks_27"	TEXT,
-                    "checks_28"	TEXT,
-                    "checks_29"	TEXT,
-                    "notes"	TEXT,
-                    "quantity_of_checks"	TEXT,
-                    "total_designated_offerings"	TEXT,
-                    "bills_total"	TEXT,
-                    "coins_total"	TEXT,
-                    "checks_total"	TEXT,
-                    "total_deposit"	TEXT,
-                    PRIMARY KEY("id" AUTOINCREMENT)
-                )
-                '''
-                conn = sqlite3.connect(self.DATABASE)
-                cursor = conn.cursor()
-                cursor.execute(sql)
-                conn.commit()
-                conn.close()
-
-                date = datetime.today().strftime('%Y-%m-%d')
-
-                values = '"0",'
-                for i in range(1, 58):
-                    if i == 1:
-                        values += '"' + date + '",'
-                    elif i == 2 or i == 51:
-                        values += '"",'
-                    else:
-                        values += '"0",'
-
-                values = values[0:len(values) - 1]
-
-                try:
-                    conn = sqlite3.connect(self.DATABASE)
-                    cur = conn.cursor()
-                    sql = 'INSERT INTO ' + self.table_name + ' values (' + values + ')'
-                    cur.execute(sql)
-                    conn.commit()
-                    conn.close()
-                except (sqlite3.OperationalError, sqlite3.DatabaseError, sqlite3.NotSupportedError) as err:
-                    self.write_log('*Critical error from WeeklyGiving.__init__: ' + str(err))
-            else:
-                quit()
-
-        self.column_pairs = self.get_column_pairs(self.spec_designations)
-
-        self.ids = self.get_ids()
-
-        self.write_log('Starting GUI')
-        self.gui = GUI(self)
-        self.get_last_rec()
-
-    def run_app(self):
-        return self.app.exec()
+            self.finished.emit()
+        except Exception:
+            logging.exception('')
 
     def get_ids(self):
-        self.write_log('Retreiving ID list')
-        conn = sqlite3.connect(self.DATABASE)
-        cur = conn.cursor()
-        ex = cur.execute('SELECT ID FROM ' + self.table_name)
-        result = ex.fetchall()
-        conn.close()
+        try:
+            self.write_log('Retreiving ID list')
+            conn = sqlite3.connect(self.DATABASE)
+            cur = conn.cursor()
+            ex = cur.execute('SELECT ID FROM ' + self.table_name)
+            result = ex.fetchall()
+            conn.close()
 
-        ids = []
-        for id in result:
-            ids.append(id[0])
-        return ids
+            ids = []
+            for id in result:
+                ids.append(id[0])
+            return ids
+        except Exception:
+            logging.exception('')
     
     def get_dates(self):
         self.write_log('Retreiving Date List')
@@ -246,14 +130,17 @@ class WeeklyGiving:
         return dates
 
     def get_column_pairs(self, json):
-        self.write_log('Getting special designation column pairs')
+        try:
+            self.write_log('Getting special designation column pairs')
 
-        keys = list(json.keys())
-        pairs = []
-        for item in keys:
-            pairs.append([item, json[item]])
+            keys = list(json.keys())
+            pairs = []
+            for item in keys:
+                pairs.append([item, json[item]])
 
-        return pairs
+            return pairs
+        except Exception:
+            logging.exception('')
     
     def get_by_id(self, id):
         for i in range(len(self.ids)):
@@ -834,12 +721,50 @@ class WeeklyGiving:
                     logging.exception('')
 
 
-lwg = None
+class LoadingBox(QDialog):
+    wg = None
+    def __init__(self):
+        try:
+            super().__init__()
+
+            self.setWindowFlags(Qt.FramelessWindowHint)
+            self.setModal(True)
+            self.setMinimumWidth(400)
+            self.setStyleSheet('background-color: #00641e')
+
+            layout = QGridLayout()
+            self.setLayout(layout)
+
+            self.status_label = QLabel('Starting...')
+            self.status_label.setAutoFillBackground(False)
+            self.status_label.setFont(QFont('Helvetica', 16, QFont.Bold))
+            self.status_label.setStyleSheet('color: white')
+            layout.addWidget(self.status_label, 0, 0)
+
+            self.show()
+
+            self.wg = WeeklyGiving(app)
+            self.wg.change_text.connect(self.change_text)
+            self.wg.finished.connect(self.finished)
+            self.wg.start()
+
+        except Exception as ex:
+            self.wg.write_log('*Critical error on startup: ' + str(ex))
+
+    def change_text(self, text):
+        self.status_label.setText(text)
+        app.processEvents()
+
+    def finished(self):
+        try:
+            self.wg.gui = GUI(self.wg)
+            self.wg.get_last_rec()
+            self.close()
+        except Exception:
+            logging.exception('')
+
+
 if __name__ == '__main__':
-    exit_code = 1517
-    while exit_code == 1517:
-        app = QApplication(sys.argv)
-        if lwg:
-            lwg.gui.destroy()
-        lwg = WeeklyGiving(app)
-        exit_code = lwg.run_app()
+    app = QApplication(sys.argv)
+    lb = LoadingBox()
+    app.exec()

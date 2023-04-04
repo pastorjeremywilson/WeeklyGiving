@@ -22,16 +22,19 @@ The Weekly Giving program includes Artifex Software's GhostScript,
 licensed under the GNU Affero General Public License (GNU AGPL). See
 https://www.ghostscript.com/licensing/index.html for more information.
 '''
-
+import json
 import logging
 import os
+import sqlite3
 import subprocess
+from datetime import datetime
+from os.path import exists
 
 from dateutil.parser import parse, ParserError
 from PyQt5.QtCore import QRegExp, Qt
 from PyQt5.QtGui import QIcon, QFont, QPixmap
 from PyQt5.QtWidgets import QMainWindow, QWidget, QGridLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QLineEdit, \
-    QTextEdit, QVBoxLayout, QScrollArea, QMessageBox, QTextBrowser
+    QTextEdit, QVBoxLayout, QScrollArea, QMessageBox, QTextBrowser, QFileDialog
 
 
 class GUI(QMainWindow):
@@ -49,11 +52,14 @@ class GUI(QMainWindow):
         self.light_green = '#eaffe8'
         self.dark_green = '#00641e'
 
-        super().__init__()
-        self.init_components()
-        self.showMaximized()
-        self.changes = False
-        self.save_button.setEnabled(False)
+        success = self.check_database()
+
+        if success:
+            super().__init__()
+            self.init_components()
+            self.showMaximized()
+            self.changes = False
+            self.save_button.setEnabled(False)
 
     def closeEvent(self, event):
         event.ignore()
@@ -76,6 +82,141 @@ class GUI(QMainWindow):
         else:
             self.lwg.do_backup()
             event.accept()
+
+    def check_database(self):
+        if exists(self.lwg.file_loc):
+            self.lwg.DATABASE = self.lwg.file_loc
+            self.lwg.table_name = 'weekly_giving'
+            self.lwg.write_log('Database located at ' + self.lwg.DATABASE)
+        else:
+            response = QMessageBox.question(
+                None,
+                'File Not Found',
+                'Database file not found. Would you like to locate it? (Choose "No" to create a new database)',
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel)
+            self.lwg.write_log('Response to locating database file: ' + str(response))
+
+            if response == QMessageBox.Yes:
+                file_dialog = QFileDialog()
+                file_dialog.setModal(True)
+                db_file = file_dialog.getOpenFileName(
+                    None,
+                    'Open Database File',
+                    self.lwg.appData,
+                    'SQLite .db File (*.db)'
+                )
+
+                self.lwg.DATABASE = db_file[0]
+                self.lwg.table_name = 'weekly_giving'
+                self.lwg.config_json['fileLoc'] = db_file[0]
+                with open(self.lwg.config_file_loc, 'w') as file:
+                    file.write(json.dumps(self.lwg.config_json))
+            elif response == QMessageBox.No:
+                self.lwg.DATABASE = self.lwg.appData + '/WeeklyGiving/weekly_giving.db'
+                self.lwg.table_name = 'weekly_giving'
+
+                self.lwg.config_json['fileLoc'] = self.lwg.DATABASE
+                with open(self.lwg.config_file_loc, 'w') as file:
+                    file.write(json.dumps(self.lwg.config_json))
+
+                sql = '''
+                    CREATE TABLE "weekly_giving" (
+                    "id"	INTEGER,
+                    "date"	TEXT,
+                    "prepared_by"	TEXT,
+                    "bills_100"	TEXT,
+                    "bills_50"	TEXT,
+                    "bills_20"	TEXT,
+                    "bills_10"	TEXT,
+                    "bills_5"	TEXT,
+                    "bills_1"	TEXT,
+                    "coins_100"	TEXT,
+                    "coins_25"	TEXT,
+                    "coins_10"	TEXT,
+                    "coins_5"	TEXT,
+                    "coins_1"	TEXT,
+                    "spec1"	TEXT,
+                    "spec2"	TEXT,
+                    "spec3"	TEXT,
+                    "spec4"	TEXT,
+                    "spec5"	TEXT,
+                    "spec6"	TEXT,
+                    "spec7"	TEXT,
+                    "checks_0"	TEXT,
+                    "checks_1"	TEXT,
+                    "checks_2"	TEXT,
+                    "checks_3"	TEXT,
+                    "checks_4"	TEXT,
+                    "checks_5"	TEXT,
+                    "checks_6"	TEXT,
+                    "checks_7"	TEXT,
+                    "checks_8"	TEXT,
+                    "checks_9"	TEXT,
+                    "checks_10"	TEXT,
+                    "checks_11"	TEXT,
+                    "checks_12"	TEXT,
+                    "checks_13"	TEXT,
+                    "checks_14"	TEXT,
+                    "checks_15"	TEXT,
+                    "checks_16"	TEXT,
+                    "checks_17"	TEXT,
+                    "checks_18"	TEXT,
+                    "checks_19"	TEXT,
+                    "checks_20"	TEXT,
+                    "checks_21"	TEXT,
+                    "checks_22"	TEXT,
+                    "checks_23"	TEXT,
+                    "checks_24"	TEXT,
+                    "checks_25"	TEXT,
+                    "checks_26"	TEXT,
+                    "checks_27"	TEXT,
+                    "checks_28"	TEXT,
+                    "checks_29"	TEXT,
+                    "notes"	TEXT,
+                    "quantity_of_checks"	TEXT,
+                    "total_designated_offerings"	TEXT,
+                    "bills_total"	TEXT,
+                    "coins_total"	TEXT,
+                    "checks_total"	TEXT,
+                    "total_deposit"	TEXT,
+                    PRIMARY KEY("id" AUTOINCREMENT)
+                )
+                '''
+                conn = sqlite3.connect(self.lwg.DATABASE)
+                cursor = conn.cursor()
+                cursor.execute(sql)
+                conn.commit()
+                conn.close()
+
+                date = datetime.today().strftime('%Y-%m-%d')
+
+                values = '"0",'
+                for i in range(1, 58):
+                    if i == 1:
+                        values += '"' + date + '",'
+                    elif i == 2 or i == 51:
+                        values += '"",'
+                    else:
+                        values += '"0",'
+
+                values = values[0:len(values) - 1]
+
+                try:
+                    conn = sqlite3.connect(self.lwg.DATABASE)
+                    cur = conn.cursor()
+                    sql = 'INSERT INTO ' + self.lwg.table_name + ' values (' + values + ')'
+                    cur.execute(sql)
+                    conn.commit()
+                    conn.close()
+                except (sqlite3.OperationalError, sqlite3.DatabaseError, sqlite3.NotSupportedError) as err:
+                    self.lwg.write_log('*Critical error from GUI.check_database: ' + str(err))
+            else:
+                quit()
+
+        self.lwg.column_pairs = self.lwg.get_column_pairs(self.lwg.spec_designations)
+
+        self.lwg.ids = self.lwg.get_ids()
+        return(True)
 
     def init_components(self):
         self.setWindowTitle('Weekly Giving')
