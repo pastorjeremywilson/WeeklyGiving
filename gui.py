@@ -3,7 +3,7 @@
 
 Copyright 2022 Jeremy G. Wilson
 
-This file is a part of the Weekly Giving program (v.1.1)
+This file is a part of the Weekly Giving program (v.1.2)
 
 Weekly Giving is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License (GNU GPL)
@@ -27,41 +27,49 @@ import logging
 import os
 import sqlite3
 import subprocess
+import time
 from datetime import datetime
 from os.path import exists
 
 from dateutil.parser import parse, ParserError
-from PyQt5.QtCore import QRegExp, Qt
+from PyQt5.QtCore import QRegExp, Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QIcon, QFont, QPixmap
 from PyQt5.QtWidgets import QMainWindow, QWidget, QGridLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QLineEdit, \
-    QTextEdit, QVBoxLayout, QScrollArea, QMessageBox, QTextBrowser, QFileDialog
+    QTextEdit, QVBoxLayout, QScrollArea, QMessageBox, QTextBrowser, QFileDialog, QApplication
 
 
 class GUI(QMainWindow):
+    create_gui = pyqtSignal()
+    set_total_labels = pyqtSignal(list)
     changes = None
     main_title_label = None
+    all_values = None
 
-    def __init__(self, lwg, name='LBC of Nampa', num_checks=30):
+    plain_font = QFont('Helvetica', 11)
+    bold_font = QFont('Helvetica', 11, QFont.Bold)
+    title_font = QFont('Helvetica', 16, QFont.Bold)
+    light_green = '#eaffe8'
+    dark_green = '#00641e'
+
+    def __init__(self, lwg, name, num_checks=30):
+        """
+        :param WeeklyGiving lwg: WeeklyGiving instance
+        :param str name: Church name from config
+        :param int num_checks: Number of checks to display
+        """
         self.lwg = lwg
         self.name = name
         self.num_checks = num_checks
 
-        self.plain_font = QFont('Helvetica', 11)
-        self.bold_font = QFont('Helvetica', 11, QFont.Bold)
-        self.title_font = QFont('Helvetica', 16, QFont.Bold)
-        self.light_green = '#eaffe8'
-        self.dark_green = '#00641e'
-
-        success = self.check_database()
-
-        if success:
-            super().__init__()
-            self.init_components()
-            self.showMaximized()
-            self.changes = False
-            self.save_button.setEnabled(False)
+        super().__init__()
+        self.create_gui.connect(self.init_components)
+        self.set_total_labels.connect(self.set_totals)
 
     def closeEvent(self, event):
+        """
+        @override
+        Checks changes and prompts for user input before closing
+        """
         event.ignore()
         if self.changes:
             result = QMessageBox.question(
@@ -83,142 +91,10 @@ class GUI(QMainWindow):
             self.lwg.do_backup()
             event.accept()
 
-    def check_database(self):
-        if exists(self.lwg.file_loc):
-            self.lwg.DATABASE = self.lwg.file_loc
-            self.lwg.table_name = 'weekly_giving'
-            self.lwg.write_log('Database located at ' + self.lwg.DATABASE)
-        else:
-            response = QMessageBox.question(
-                None,
-                'File Not Found',
-                'Database file not found. Would you like to locate it? (Choose "No" to create a new database)',
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel)
-            self.lwg.write_log('Response to locating database file: ' + str(response))
-
-            if response == QMessageBox.Yes:
-                file_dialog = QFileDialog()
-                file_dialog.setModal(True)
-                db_file = file_dialog.getOpenFileName(
-                    None,
-                    'Open Database File',
-                    self.lwg.appData,
-                    'SQLite .db File (*.db)'
-                )
-
-                self.lwg.DATABASE = db_file[0]
-                self.lwg.table_name = 'weekly_giving'
-                self.lwg.config_json['fileLoc'] = db_file[0]
-                with open(self.lwg.config_file_loc, 'w') as file:
-                    file.write(json.dumps(self.lwg.config_json))
-            elif response == QMessageBox.No:
-                self.lwg.DATABASE = self.lwg.appData + '/WeeklyGiving/weekly_giving.db'
-                self.lwg.table_name = 'weekly_giving'
-
-                self.lwg.config_json['fileLoc'] = self.lwg.DATABASE
-                with open(self.lwg.config_file_loc, 'w') as file:
-                    file.write(json.dumps(self.lwg.config_json))
-
-                sql = '''
-                    CREATE TABLE "weekly_giving" (
-                    "id"	INTEGER,
-                    "date"	TEXT,
-                    "prepared_by"	TEXT,
-                    "bills_100"	TEXT,
-                    "bills_50"	TEXT,
-                    "bills_20"	TEXT,
-                    "bills_10"	TEXT,
-                    "bills_5"	TEXT,
-                    "bills_1"	TEXT,
-                    "coins_100"	TEXT,
-                    "coins_25"	TEXT,
-                    "coins_10"	TEXT,
-                    "coins_5"	TEXT,
-                    "coins_1"	TEXT,
-                    "spec1"	TEXT,
-                    "spec2"	TEXT,
-                    "spec3"	TEXT,
-                    "spec4"	TEXT,
-                    "spec5"	TEXT,
-                    "spec6"	TEXT,
-                    "spec7"	TEXT,
-                    "checks_0"	TEXT,
-                    "checks_1"	TEXT,
-                    "checks_2"	TEXT,
-                    "checks_3"	TEXT,
-                    "checks_4"	TEXT,
-                    "checks_5"	TEXT,
-                    "checks_6"	TEXT,
-                    "checks_7"	TEXT,
-                    "checks_8"	TEXT,
-                    "checks_9"	TEXT,
-                    "checks_10"	TEXT,
-                    "checks_11"	TEXT,
-                    "checks_12"	TEXT,
-                    "checks_13"	TEXT,
-                    "checks_14"	TEXT,
-                    "checks_15"	TEXT,
-                    "checks_16"	TEXT,
-                    "checks_17"	TEXT,
-                    "checks_18"	TEXT,
-                    "checks_19"	TEXT,
-                    "checks_20"	TEXT,
-                    "checks_21"	TEXT,
-                    "checks_22"	TEXT,
-                    "checks_23"	TEXT,
-                    "checks_24"	TEXT,
-                    "checks_25"	TEXT,
-                    "checks_26"	TEXT,
-                    "checks_27"	TEXT,
-                    "checks_28"	TEXT,
-                    "checks_29"	TEXT,
-                    "notes"	TEXT,
-                    "quantity_of_checks"	TEXT,
-                    "total_designated_offerings"	TEXT,
-                    "bills_total"	TEXT,
-                    "coins_total"	TEXT,
-                    "checks_total"	TEXT,
-                    "total_deposit"	TEXT,
-                    PRIMARY KEY("id" AUTOINCREMENT)
-                )
-                '''
-                conn = sqlite3.connect(self.lwg.DATABASE)
-                cursor = conn.cursor()
-                cursor.execute(sql)
-                conn.commit()
-                conn.close()
-
-                date = datetime.today().strftime('%Y-%m-%d')
-
-                values = '"0",'
-                for i in range(1, 58):
-                    if i == 1:
-                        values += '"' + date + '",'
-                    elif i == 2 or i == 51:
-                        values += '"",'
-                    else:
-                        values += '"0",'
-
-                values = values[0:len(values) - 1]
-
-                try:
-                    conn = sqlite3.connect(self.lwg.DATABASE)
-                    cur = conn.cursor()
-                    sql = 'INSERT INTO ' + self.lwg.table_name + ' values (' + values + ')'
-                    cur.execute(sql)
-                    conn.commit()
-                    conn.close()
-                except (sqlite3.OperationalError, sqlite3.DatabaseError, sqlite3.NotSupportedError) as err:
-                    self.lwg.write_log('*Critical error from GUI.check_database: ' + str(err))
-            else:
-                quit()
-
-        self.lwg.column_pairs = self.lwg.get_column_pairs(self.lwg.spec_designations)
-
-        self.lwg.ids = self.lwg.get_ids()
-        return(True)
-
     def init_components(self):
+        """
+        Creates the gui components and lays them out
+        """
         self.setWindowTitle('Weekly Giving')
         self.setWindowIcon(QIcon('resources/icon.ico'))
 
@@ -239,10 +115,33 @@ class GUI(QMainWindow):
         self.main_layout.setColumnStretch(3, 2)
         main_widget.setLayout(self.main_layout)
 
+        self.name_widget = QWidget()
+        name_layout = QHBoxLayout()
+        self.name_widget.setLayout(name_layout)
+
         self.main_title_label = QLabel(self.lwg.name + ' Weekly Giving Report')
         self.main_title_label.setFont(self.title_font)
         self.main_title_label.setStyleSheet('color: white')
-        self.main_layout.addWidget(self.main_title_label, 0, 0)
+        name_layout.addWidget(self.main_title_label)
+
+        name_change_button = QPushButton()
+        name_change_button.setIcon(QIcon('./resources/edit_icon_white.svg'))
+        name_change_button.setToolTip('Change Church Name')
+        name_change_button.setIconSize(QSize(20, 20))
+        name_change_button.setFixedSize(20, 20)
+        name_change_button.setStyleSheet(
+            'QPushButton {'
+            '   border: none;'
+            '}'
+            'QPushButton:ToolTip {'
+            '   background: white;'
+            '}'
+        )
+        name_change_button.pressed.connect(self.change_name)
+        name_layout.addWidget(name_change_button)
+        name_layout.addStretch()
+
+        self.main_layout.addWidget(self.name_widget, 0, 0)
 
         self.build_menu_bar()
         self.build_top_frame()
@@ -255,6 +154,9 @@ class GUI(QMainWindow):
         self.build_totals_frame()
 
     def build_menu_bar(self):
+        """
+        Method to create the gui's menu bar
+        """
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu('File')
 
@@ -288,6 +190,12 @@ class GUI(QMainWindow):
         spec_offering_action = config_menu.addAction('Change Special Offering Designations')
         spec_offering_action.triggered.connect(self.lwg.change_designations)
 
+        include_action = config_menu.addAction('Include Special Designations in Total Deposit')
+        include_action.setCheckable(True)
+        if self.lwg.include_special:
+            include_action.setChecked(True)
+        include_action.triggered.connect(self.include_special)
+
         num_checks_action = config_menu.addAction('Change Maximum Number of Checks')
         num_checks_action.triggered.connect(self.lwg.change_num_checks)
 
@@ -303,6 +211,9 @@ class GUI(QMainWindow):
         about_action.triggered.connect(self.show_about)
 
     def build_top_frame(self):
+        """
+        Method to create the gui's top (button) widget
+        """
         top_widget = QWidget()
         top_widget.setObjectName('top_widget')
         top_widget.setStyleSheet('#top_widget { background-color: ' + self.dark_green + '; border-top: 3px solid white; border-bottom: 3px solid white;}')
@@ -408,7 +319,14 @@ class GUI(QMainWindow):
 
         self.main_layout.addWidget(top_widget, 1, 0, 1, 4)
 
+        self.showMaximized()
+        self.changes = False
+        self.save_button.setEnabled(False)
+
     def build_info_frame(self):
+        """
+        Method to build the widget containing important record info
+        """
         info_widget = QWidget()
         info_widget.setStyleSheet('background-color: ' + self.light_green)
 
@@ -445,11 +363,14 @@ class GUI(QMainWindow):
         self.main_layout.addWidget(info_widget, 2, 0, 1, 4)
 
     def build_bills_frame(self):
-        bills_widget = QWidget()
-        bills_widget.setStyleSheet('background-color: ' + self.light_green)
+        """
+        Method to create the widget containing the bills fields
+        """
+        self.bills_widget = QWidget()
+        self.bills_widget.setStyleSheet('background-color: ' + self.light_green)
 
         bills_layout = QGridLayout()
-        bills_widget.setLayout(bills_layout)
+        self.bills_widget.setLayout(bills_layout)
 
         bills_label = QLabel('Bills')
         bills_label.setFont(self.bold_font)
@@ -511,14 +432,17 @@ class GUI(QMainWindow):
         self.bills_1_line_edit.textEdited.connect(self.on_change)
         bills_layout.addWidget(self.bills_1_line_edit, 6, 1)
 
-        self.main_layout.addWidget(bills_widget, 3, 0)
+        self.main_layout.addWidget(self.bills_widget, 3, 0)
 
     def build_coins_frame(self):
-        coins_widget = QWidget()
-        coins_widget.setStyleSheet('background-color: ' + self.light_green)
+        """
+        Method to create the gui's coins fields
+        """
+        self.coins_widget = QWidget()
+        self.coins_widget.setStyleSheet('background-color: ' + self.light_green)
 
         coins_layout = QGridLayout()
-        coins_widget.setLayout(coins_layout)
+        self.coins_widget.setLayout(coins_layout)
 
         coins_label = QLabel('Coins')
         coins_label.setFont(self.bold_font)
@@ -571,40 +495,65 @@ class GUI(QMainWindow):
         self.penny_line_edit.textEdited.connect(self.on_change)
         coins_layout.addWidget(self.penny_line_edit, 5, 1)
 
-        self.main_layout.addWidget(coins_widget, 4, 0)
+        self.main_layout.addWidget(self.coins_widget, 4, 0)
 
     def build_special_frame(self):
-        special_widget = QWidget()
-        special_widget.setStyleSheet('background-color: ' + self.light_green)
+        """
+        Method to create the gui's special designation fields
+        """
+        self.special_widget = QWidget()
+        self.special_widget.setStyleSheet('background-color: ' + self.light_green)
 
-        special_layout = QGridLayout()
-        special_widget.setLayout(special_layout)
+        special_layout = QVBoxLayout()
+        self.special_widget.setLayout(special_layout)
 
         special_label = QLabel('Special Designations')
         special_label.setStyleSheet('color: ' + self.dark_green)
         special_label.setFont(self.bold_font)
         special_label.setMinimumHeight(30)
-        special_layout.addWidget(special_label, 0, 0)
+        special_layout.addWidget(special_label)
 
         for i in range(0, len(self.lwg.spec_designations)):
+            special_line_widget = QWidget()
+            special_line_layout = QHBoxLayout()
+            special_line_widget.setLayout(special_line_layout)
+
+            push_button = QPushButton()
+            push_button.setObjectName('special_label' + str(i))
+            push_button.setIcon(QIcon('./resources/edit_icon_black.svg'))
+            push_button.setToolTip('Change Special Designation Name')
+            push_button.setIconSize(QSize(12, 12))
+            push_button.setFixedSize(12, 12)
+            push_button.setStyleSheet('border: none;')
+            push_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            push_button.pressed.connect(self.change_name)
+            special_line_layout.addWidget(push_button)
+
             label = QLabel(self.lwg.column_pairs[i][1])
-            label.setObjectName('special_label')
+            label.setObjectName('special_label' + str(i))
             label.setFont(self.plain_font)
-            special_layout.addWidget(label, i + 1, 0)
+            special_line_layout.addWidget(label)
+            special_line_layout.addStretch()
+
             line_edit = CustomCurrencyLineEdit()
             line_edit.setFont(self.plain_font)
-            line_edit.setObjectName('special_edit')
+            line_edit.setObjectName('special_edit' + str(i))
             line_edit.textEdited.connect(self.on_change)
-            special_layout.addWidget(line_edit, i + 1, 1)
+            special_line_layout.addWidget(line_edit)
 
-        self.main_layout.addWidget(special_widget, 3, 2)
+            special_layout.addWidget(special_line_widget)
+
+        self.main_layout.addWidget(self.special_widget, 3, 2, 2, 1)
 
     def build_checks_frame(self):
-        checks_widget = QWidget()
-        checks_widget.setStyleSheet('background-color: ' + self.light_green)
+        """
+        Method to create the gui's checks fields
+        """
+        self.checks_widget = QWidget()
+        self.checks_widget.setStyleSheet('background-color: ' + self.light_green)
 
         checks_layout = QGridLayout()
-        checks_widget.setLayout(checks_layout)
+        self.checks_widget.setLayout(checks_layout)
 
         checks_label = QLabel('Checks')
         checks_label.setFont(self.bold_font)
@@ -624,11 +573,14 @@ class GUI(QMainWindow):
 
         scroll_container = QScrollArea()
         scroll_container.setStyleSheet('background-color: ' + self.light_green)
-        scroll_container.setWidget(checks_widget)
+        scroll_container.setWidget(self.checks_widget)
 
         self.main_layout.addWidget(scroll_container, 3, 1, 3, 1)
 
     def build_notes_frame(self):
+        """
+        Method to create the notes area of the gui
+        """
         notes_widget = QWidget()
         notes_widget.setStyleSheet('background-color: ' + self.light_green)
 
@@ -650,6 +602,9 @@ class GUI(QMainWindow):
         self.main_layout.addWidget(notes_widget, 3, 3)
 
     def build_totals_frame(self):
+        """
+        Method to create the totals area of the gui
+        """
         totals_widget = QWidget()
         totals_widget.setStyleSheet('background-color: ' + self.light_green)
 
@@ -727,12 +682,136 @@ class GUI(QMainWindow):
 
         self.main_layout.addWidget(totals_widget, 4, 3)
 
-    def on_change(self):
-        self.changes = True
-        self.save_button.setEnabled(True)
-        self.recalc()
+    def change_name(self):
+        """
+        Method that creates a QLineEdit that overlays a chosen label the user wants to change. Passes to
+        complete_change_name in order to apply the user's changes.
+        """
+        sender = self.sender()
+        sender.setEnabled(False)
+        widget = self.findChild(QLabel, sender.objectName())
+
+        if 'special_label' in widget.objectName():
+            widget_text = widget.text()
+            checkmark_icon = './resources/checkmark_black.svg'
+
+            biggest_width = 0
+            for label in self.special_widget.findChildren(QLabel, QRegExp('special_label*')):
+                if label.width() > biggest_width:
+                    biggest_width = label.width()
+
+        else:
+            widget_text = widget.text().replace(' Weekly Giving Report', '')
+            checkmark_icon = './resources/checkmark_white.svg'
+            biggest_width = widget.width()
+
+        name_change_line_edit = QLineEdit(widget_text)
+        name_change_line_edit.setParent(widget.parent())
+        name_change_line_edit.setFixedSize(biggest_width, widget.height())
+        name_change_line_edit.setFont(widget.font())
+        name_change_line_edit.setStyleSheet('background: white; color: black;')
+        name_change_line_edit.move(widget.pos())
+        name_change_line_edit.show()
+
+        name_change_push_button = QPushButton()
+        name_change_push_button.setIcon(QIcon(checkmark_icon))
+        name_change_push_button.setIconSize(QSize(widget.height(), widget.height()))
+        name_change_push_button.setFixedSize(widget.height() + 5, widget.height() + 5)
+        name_change_push_button.setStyleSheet('border: none;')
+        name_change_push_button.setParent(widget.parent())
+        name_change_push_button.pressed.connect(
+            lambda: self.complete_name_change(name_change_line_edit, name_change_push_button, widget, sender))
+        name_change_push_button.move(
+            name_change_line_edit.pos().x() + name_change_line_edit.width(), name_change_line_edit.pos().y())
+        name_change_push_button.show()
+
+        name_change_line_edit.setFocus()
+        name_change_line_edit.selectAll()
+        name_change_line_edit.returnPressed.connect(
+            lambda: self.complete_name_change(name_change_line_edit, name_change_push_button, widget, sender))
+
+    def complete_name_change(self, line_edit, push_button, widget, sender):
+        """
+        Method to apply the user's changes to editable labels. Removes the QLineEdit and QPushButton overlays,
+        writes the changes to the config file, and changes the chosen label.
+        :param QLineEdit line_edit: the line edit created by change_name
+        :param QPushButton push_button: the push_button created by change_name
+        :param QLabel widget: the label being changed
+        :param QWidget sender: the sender that initiated change_name
+        """
+        line_edit.hide()
+        line_edit.deleteLater()
+        push_button.hide()
+        push_button.deleteLater()
+
+        sender.setEnabled(True)
+
+        try:
+            with open(self.lwg.config_file_loc, 'r') as file:
+                config_json = json.loads(file.read())
+
+            if 'special_label' in widget.objectName():
+                num = widget.objectName()[len(widget.objectName()) - 1]
+                key = 'spec' + str(int(num) + 1)
+
+                config_json['specialDesignations'][key] = line_edit.text()
+                widget.setText(line_edit.text())
+
+                for i in range(len(self.lwg.column_pairs)):
+                    if self.lwg.column_pairs[i][0] == key:
+                        self.lwg.column_pairs[i][1] = line_edit.text()
+            else:
+                self.lwg.name = line_edit.text()
+
+                config_json['name'] = line_edit.text()
+                widget.setText(line_edit.text() + ' Weekly Giving Report')
+
+            with open(self.lwg.config_file_loc, 'w') as file:
+                file.write(json.dumps(config_json))
+
+            self.main_title_label.setText(self.lwg.name + ' Weekly Giving Report')
+
+        except OSError as err:
+            self.write_log('*Critical error in WeeklyGiving.change_name: ' + str(err))
+
+    def include_special(self):
+        """
+        Method called when user changes the 'include special designations in totals' menu action
+        """
+        sender = self.sender()
+        self.lwg.include_special(sender)
+
+        self.on_change(False)
+
+    def on_change(self, change_state=True):
+        """
+        Method to recalculate totals, set changes variable to true, and enable the save button if changes are made
+        to any of the QLineEdits.
+        :param bool change_state: optional: send False if changes to data have not been made
+        """
+        all_values = []
+        for line_edit in self.bills_widget.findChildren(QLineEdit):
+            all_values.append(line_edit.text())
+        for line_edit in self.coins_widget.findChildren(QLineEdit):
+            all_values.append(line_edit.text())
+        for line_edit in self.special_widget.findChildren(QLineEdit):
+            all_values.append(line_edit.text())
+        for line_edit in self.checks_widget.findChildren(QLineEdit):
+            all_values.append(line_edit.text())
+
+        if change_state:
+            self.changes = True
+            self.save_button.setEnabled(True)
+
+        from weekly_giving import Recalc
+        recalc = Recalc(all_values, self)
+        self.lwg.thread_pool.start(recalc)
 
     def fill_values(self, result_dictionary):
+        """
+        Method to take data stored in a dictionary and use it to populate the appropriate line edits in the gui
+        :param dict result_dictionary: All data from the record to be displayed
+        """
         try:
             self.id_combo_box.blockSignals(True)
             self.date_combo_box.blockSignals(True)
@@ -758,19 +837,30 @@ class GUI(QMainWindow):
             self.nickel_line_edit.setText(result_dictionary['coins_5'])
             self.penny_line_edit.setText(result_dictionary['coins_1'])
 
+            #clear checks and special offering boxes
+            for widget in self.findChildren(QLineEdit, QRegExp('special_edit*')):
+                widget.setText('')
+            for i in range(0, self.lwg.max_checks):
+                self.findChild(QLineEdit, 'checks_' + str(i)).setText('')
+
             specials = []
             for key in result_dictionary:
                 if 'spec' in key:
                     specials.append(result_dictionary[key])
 
             index = 0
-            for widget in self.findChildren(QLineEdit, 'special_edit'):
-                widget.setText(str('{:.2f}'.format(float(specials[index]))))
-                index += 1
+            for widget in self.findChildren(QLineEdit, QRegExp('special_edit*')):
+                if len(specials[index]) > 0:
+                    value = float(specials[index].replace(',', ''))
+                    if value > 0:
+                        widget.setText(str('{:,.2f}'.format(value)))
+                        index += 1
 
             for key in result_dictionary:
-                if 'check' in key and not 'quantity' in key and not 'tot' in key:
-                    self.findChild(QLineEdit, key).setText(str('{:,.2f}'.format((float(result_dictionary[key].replace(',', ''))))))
+                if 'check' in key and not 'quantity' in key and not 'tot' in key and len(result_dictionary[key]) > 0:
+                    value = float(result_dictionary[key].replace(',', ''))
+                    if value > 0:
+                        self.findChild(QLineEdit, key).setText(str('{:,.2f}'.format(value)))
 
             notes = result_dictionary['notes']
             notes = notes.replace('<apost>', '\'')
@@ -779,88 +869,43 @@ class GUI(QMainWindow):
 
             self.num_checks_total_label.setText(str(result_dictionary['quantity_of_checks']))
 
-            self.recalc()
-
             self.changes = False
         except Exception:
             logging.exception('')
 
-    def recalc(self):
-        hundreds, fifties, twenties, tens, fives, ones = 0, 0, 0, 0, 0, 0
-        if self.bills_100_line_edit.text().isdigit():
-            hundreds = int(self.bills_100_line_edit.text())
-        if self.bills_50_line_edit.text().isdigit():
-            fifties = int(self.bills_50_line_edit.text())
-        if self.bills_20_line_edit.text().isdigit():
-            twenties = int(self.bills_20_line_edit.text())
-        if self.bills_10_line_edit.text().isdigit():
-            tens = int(self.bills_10_line_edit.text())
-        if self.bills_5_line_edit.text().isdigit():
-            fives = int(self.bills_5_line_edit.text())
-        if self.bills_1_line_edit.text().isdigit():
-            ones = int(self.bills_1_line_edit.text())
+    def set_totals(self, totals):
+        """
+        Method to change the totals labels to the amounts calculated in weekly_giving.Recalc
+        :param list totals: list of totals to be displayed
+        """
+        self.num_checks_total_label.setText(str(totals[4]))
+        self.bills_total_label.setText(str('{:,.2f}'.format(totals[0])))
+        self.coins_total_label.setText(str('{:,.2f}'.format(totals[1])))
+        self.designated_total_label.setText(str('{:,.2f}'.format(totals[2])))
+        self.checks_total_label.setText(str('{:,.2f}'.format(totals[3])))
 
-        bills_total = float((hundreds * 100) + (fifties * 50) + (twenties * 20) + (tens * 10) + (fives * 5) + ones)
-
-        dollars, quarters, dimes, nickels, pennies = 0, 0, 0, 0, 0
-        if self.dollar_line_edit.text().isdigit():
-            dollars = int(self.dollar_line_edit.text())
-        if self.quarter_line_edit.text().isdigit():
-            quarters = int(self.quarter_line_edit.text())
-        if self.dime_line_edit.text().isdigit():
-            dimes = int(self.dime_line_edit.text())
-        if self.nickel_line_edit.text().isdigit():
-            nickels = int(self.nickel_line_edit.text())
-        if self.penny_line_edit.text().isdigit():
-            pennies = int(self.penny_line_edit.text())
-
-        coins_total = float(dollars + (quarters * 0.25) + (dimes * 0.1) + (nickels * 0.05) + (pennies * 0.01))
-
-        index = 0
-        checks_total = 0.0
-        num_checks = 0
-        for widget in self.findChildren(QLineEdit, QRegExp('check*')):
-            try:
-                amount = widget.text().replace(',', '')
-                checks_total += float(amount)
-                if float(amount) > 0:
-                    num_checks += 1
-                index += 1
-            except ValueError:
-                if len(amount) > 0:
-                    QMessageBox.information(self, 'Bad Number', 'Check number '
-                                            + str(index + 1)
-                                            + ' appears to contain a bad value. Check that '
-                                              'it contains no letters or spaces')
-
-        special_total = 0.0
-        for widget in self.findChildren(QLineEdit, 'special_edit'):
-            try:
-                amount = widget.text().replace(',', '')
-                special_total += float(amount)
-            except ValueError:
-                if len(amount) > 0:
-                    QMessageBox.information(self, 'Bad Number', 'The number in '
-                                            + widget.objectName()
-                                            + ' appears to contain a bad value. Check that '
-                                              'it contains no letters or spaces')
-
-        self.num_checks_total_label.setText(str(num_checks))
-        self.bills_total_label.setText(str('{:,.2f}'.format(float(bills_total))))
-        self.coins_total_label.setText(str('{:,.2f}'.format(float(coins_total))))
-        self.designated_total_label.setText(str('{:,.2f}'.format(float(special_total))))
-        self.checks_total_label.setText(str('{:,.2f}'.format(float(checks_total))))
-
-        total = bills_total + coins_total + checks_total
+        if self.lwg.include_special_in_total:
+            total = totals[0] + totals[1] + totals[2] + totals[3]
+        else:
+            total = totals[0] + totals[1] + totals[3]
         self.total_total_label.setText(str('{:,.2f}'.format(float(total))))
+        QApplication.processEvents()
 
     def rewrite_designations(self, designations):
+        """
+        Method to iterate the user's changed special designation labels and change them in the gui
+        """
         index = 0
-        for widget in self.findChildren(QLabel, 'special_label'):
+        for widget in self.findChildren(QLabel, QRegExp('special_label*')):
             widget.setText(designations[index])
+            QApplication.processEvents()
             index += 1
 
     def print_rec(self):
+        """
+        Method to format and print the record data currently being displayed. Uses reportlab to create a PDF, which
+        will then be printed.
+        """
         try:
             from reportlab.pdfgen import canvas
             from reportlab.lib.pagesizes import letter
@@ -982,14 +1027,17 @@ class GUI(QMainWindow):
             currentLine -= lineHeight
 
             specialArray = []
-            for widget in self.findChildren(QLineEdit, 'special_edit'):
+            for widget in self.findChildren(QLineEdit, QRegExp('special_edit*')):
                 specialArray.append(widget.text())
             column3 = 400
             canvas.setFont('Helvetica', 11)
             currentLine = topLineofEntries
             for num in specialArray:
-                canvas.drawRightString(column3, currentLine, '${:,.2f}'.format(float(num)))
-                currentLine -= lineHeight
+                if len(num) > 0:
+                    value = float(num.replace(',', ''))
+                    if value > 0:
+                        canvas.drawRightString(column3, currentLine, '${:,.2f}'.format(value))
+                        currentLine -= lineHeight
 
             column4 = 440
             canvas.setFont('Helvetica-Bold', 11)
@@ -1008,8 +1056,11 @@ class GUI(QMainWindow):
             canvas.setFont('Helvetica', 11)
             currentLine = topLineofEntries
             for num in checksArray:
-                canvas.drawRightString(column5, currentLine, '${:,.2f}'.format(float(num.replace(',', ''))))
-                currentLine -= lineHeight
+                if len(num) > 0:
+                    value = float(num.replace(',', ''))
+                    if value > 0:
+                        canvas.drawRightString(column5, currentLine, '${:,.2f}'.format(value))
+                        currentLine -= lineHeight
 
             currentLine = 300
             canvas.setFont('Helvetica-Bold', 12)
@@ -1071,12 +1122,27 @@ class GUI(QMainWindow):
 
             print('Capturing print subprocess sdtout & stderr')
             stdout, stderr = p.communicate()
-            self.lwg.write_log('gsprint.exe stdout: ' + str(stdout))
-            self.lwg.write_log('gsprint.exe stderr: ' + str(stderr))
-        except Exception:
-            logging.exception('')
+
+            str_stdout = stdout.decode('utf-8')
+            str_stderr = stderr.decode('uft-8')
+            self.lwg.write_log('gsprint.exe stdout: ' + str_stdout)
+            self.lwg.write_log('gsprint.exe stderr: ' + str_stderr)
+
+            if len(str_stderr) > 0:
+                QMessageBox.warning(
+                    self,
+                    'Print Error',
+                    '*Error Print system threw an error:\n\n' + str_stderr,
+                    QMessageBox.Ok
+                )
+
+        except Exception as ex:
+            self.lwg.write_log('*Error during printing: ' + str(ex))
 
     def refresh_combo_boxes(self):
+        """
+        Method to repopulate the id and date comboboxes when records are added, removed, or altered
+        """
         self.id_combo_box.blockSignals(True)
         self.date_combo_box.blockSignals(True)
 
@@ -1093,6 +1159,9 @@ class GUI(QMainWindow):
         self.date_combo_box.blockSignals(False)
 
     def show_help(self):
+        """
+        Method to create and display the help window
+        """
         self.help_window = QWidget()
         self.help_window.setFixedSize(1000, 800)
         window_layout = QVBoxLayout()
@@ -1208,11 +1277,11 @@ class GUI(QMainWindow):
         help_layout.addWidget(settings_image_label)
 
         settings_text_label = QLabel(
-            'In the settings menu, you will find commands to change the name that appears in the program and on your '
-            'printed report, change the names of the special offering designations, change the number of checks that '
-            'appears in the Checks section of your records, and to save the file that stores all your records to a '
-            'different location. Note that there is currently no way to change the number of special offering '
-            'designations, that number being fixed at seven.'
+            'In the settings menu, you will find commands to change the church name that appears in the program and '
+            'on your printed report, change the names of the special offering designations, change the number of '
+            'checks that appears in the Checks section of your records, and to save the file that stores all your '
+            'records to a different location. Note that there is currently no way to change the number of special '
+            'offering designations, that number being fixed at seven.'
         )
         settings_text_label.setWordWrap(True)
         settings_text_label.setFont(self.plain_font)
@@ -1225,11 +1294,15 @@ class GUI(QMainWindow):
         self.help_window.show()
 
     def show_about(self):
+        """
+        Method to create and display the about window
+        """
         self.about_widget = QWidget()
         about_layout = QVBoxLayout()
         self.about_widget.setLayout(about_layout)
 
         about_text = QTextBrowser()
+        about_text.setOpenExternalLinks(True)
         about_text.setHtml(
             'Weekly Giving is free software: you can redistribute it and/or modify it under the terms of the '
             'GNU General Public License (GNU GPL) published by the Free Software Foundation, either version 3 of the '
@@ -1253,6 +1326,10 @@ class GUI(QMainWindow):
         self.about_widget.show()
 
 class CustomDateLineEdit(QLineEdit):
+    """
+    Class implementing QLineEdit which overrides focusOutEvent, allowing for automatic formatting and invalid input
+    checking of the user's input in the date field
+    """
     def __init__(self):
         super().__init__()
 
@@ -1264,15 +1341,19 @@ class CustomDateLineEdit(QLineEdit):
         try:
             new_date = parse(date).strftime('%Y-%m-%d')
             self.setText(new_date)
-            self.setStyleSheet('color: black')
+            self.setStyleSheet('color: black; background: white;')
             self.setToolTip('')
             super(CustomDateLineEdit, self).focusOutEvent(evt)
         except ParserError:
-            self.setStyleSheet('color: red')
+            self.setStyleSheet('color: red; background: white;')
             self.setToolTip('Bad date format. Try YYYY-MM-DD.')
             super(CustomDateLineEdit, self).focusOutEvent(evt)
 
 class CustomCurrencyLineEdit(QLineEdit):
+    """
+    Class implementing QLineEdit which overrides focusOutEvent, allowing for automatic formatting and invalid input
+    checking of the user's input in fields meant for currency
+    """
     def __init__(self):
         super().__init__()
         self.setAlignment(Qt.AlignRight)
@@ -1280,22 +1361,26 @@ class CustomCurrencyLineEdit(QLineEdit):
         self.setStyleSheet('background-color: white')
 
     def focusOutEvent(self, evt):
-        amount = self.text().strip()
+        amount = self.text().strip().replace(',', '')
         if amount == '':
             amount = '0.00'
             self.setText('0.00')
         try:
             new_amount = '{:,.2f}'.format(float(amount))
             self.setText(new_amount)
-            self.setStyleSheet('color: black')
+            self.setStyleSheet('color: black; background: white;')
             self.setToolTip('')
             super(CustomCurrencyLineEdit, self).focusOutEvent(evt)
         except ValueError:
-            self.setStyleSheet('color: red')
+            self.setStyleSheet('color: red; background: white;')
             self.setToolTip('Bad number')
             super(CustomCurrencyLineEdit, self).focusOutEvent(evt)
 
 class CustomIntegerLineEdit(QLineEdit):
+    """
+    Class implementing QLineEdit which overrides focusOutEvent, allowing for automatic formatting and invalid input
+    checking of the user's input in fields meant for integers (Bills and Coins)
+    """
     def __init__(self):
         super().__init__()
         self.setAlignment(Qt.AlignRight)
@@ -1310,7 +1395,7 @@ class CustomIntegerLineEdit(QLineEdit):
         try:
             new_amount = int(number)
             self.setText(str(new_amount))
-            self.setStyleSheet('color: black')
+            self.setStyleSheet('color: black; background: white;')
             self.setToolTip('')
             super(CustomIntegerLineEdit, self).focusOutEvent(evt)
         except ValueError:

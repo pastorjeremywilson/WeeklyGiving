@@ -7,8 +7,9 @@
                 "spec4": "International Mission",
                 "spec5": "Synod",
                 "spec6": "Seminary",
-                "spec7": "Other"
+                "spec7": "Other (See notes)"
         },
         "maxChecks": 30,
-        "name": "LBC"
+        "name": "LBC",
+        "includeSpecial": "False"
 }
