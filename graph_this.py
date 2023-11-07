@@ -3,7 +3,7 @@
 
 Copyright 2022 Jeremy G. Wilson
 
-This file is a part of the Weekly Giving program (v.1.2)
+This file is a part of the Weekly Giving program (v.1.3)
 
 Weekly Giving is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License (GNU GPL)
@@ -28,7 +28,7 @@ import datetime
 import matplotlib.pyplot as plot
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QVBoxLayout, QLabel, QWidget
+from PyQt5.QtWidgets import QVBoxLayout, QLabel, QWidget, QApplication
 
 
 class LineGraph:
@@ -52,6 +52,7 @@ class LineGraph:
         layout.addWidget(label)
 
         self.wait_dialog.show()
+        QApplication.processEvents()
 
     def graph_values_by_date_line(self):
         for item in self.pairs:
@@ -96,6 +97,10 @@ class LineGraph:
         plot.show()
 
     def graph_values_by_date_bar(self):
+        for item in self.pairs:
+            self.x.append(item[0])
+            self.y.append(item[1])
+
         x_vals = []
         y_vals = []
         total = 0.0

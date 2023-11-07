@@ -3,7 +3,7 @@
 
 Copyright 2022 Jeremy G. Wilson
 
-This file is a part of the Weekly Giving program (v.1.2)
+This file is a part of the Weekly Giving program (v.1.3)
 
 Weekly Giving is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License (GNU GPL)
@@ -192,8 +192,10 @@ class GUI(QMainWindow):
 
         include_action = config_menu.addAction('Include Special Designations in Total Deposit')
         include_action.setCheckable(True)
-        if self.lwg.include_special:
+        if self.lwg.include_special_in_total:
             include_action.setChecked(True)
+        else:
+            include_action.setChecked(False)
         include_action.triggered.connect(self.include_special)
 
         num_checks_action = config_menu.addAction('Change Maximum Number of Checks')
@@ -1215,6 +1217,9 @@ class GUI(QMainWindow):
             '    between certain dates, and save the current record. This save button is only active after changes have '
             '    been made to the current record.'
             '</p>'
+            '<p>'
+            '    Also note that any label in the program that has an edit icon can be edited to suit your needs.'
+            '</p>'
         )
         help_layout.addWidget(toolbar_text_label)
 
@@ -1233,8 +1238,8 @@ class GUI(QMainWindow):
         help_layout.addWidget(file_image_label)
 
         file_text_label = QLabel(
-            'In the file menu, you will find commands to save the current record, '
-            'print the current record, and exit the program.'
+            'In the file menu, you will find commands to <strong>save</strong> the current record, '
+            '<strong>print</strong> the current record, and <strong>exit</strong> the program.'
         )
         file_text_label.setWordWrap(True)
         file_text_label.setFont(self.plain_font)
@@ -1255,8 +1260,8 @@ class GUI(QMainWindow):
         help_layout.addWidget(tools_image_label)
 
         tools_text_label = QLabel(
-            'In the tools menu, you will find commands to create a new record, delete the current record, '
-            'or view the log file, which may contain information about program crashes or undesired behavior.'
+            'In the tools menu, you will find commands to <strong>create a new record</strong>, <strong>delete</strong> the current record, '
+            'or <strong>view the log file</strong>, which may contain information about program crashes or undesired behavior.'
         )
         tools_text_label.setWordWrap(True)
         tools_text_label.setFont(self.plain_font)
@@ -1277,11 +1282,13 @@ class GUI(QMainWindow):
         help_layout.addWidget(settings_image_label)
 
         settings_text_label = QLabel(
-            'In the settings menu, you will find commands to change the church name that appears in the program and '
-            'on your printed report, change the names of the special offering designations, change the number of '
-            'checks that appears in the Checks section of your records, and to save the file that stores all your '
-            'records to a different location. Note that there is currently no way to change the number of special '
-            'offering designations, that number being fixed at seven.'
+            'In the settings menu, you will find commands to <strong>change the church name</strong> that appears in '
+            'the program and on your printed report, change the names of the <strong>special offering designations'
+            '</strong>, change the <strong>number of checks</strong> that appears in the Checks section of your '
+            'records, choose whether <strong>special designations</strong> should be included in the <strong>total '
+            'deposit</strong>, and to save the file that stores all your records to a <strong>different location'
+            '</strong>. Note that there is currently no way to change the number of special offering designations, '
+            'that number being fixed at seven.'
         )
         settings_text_label.setWordWrap(True)
         settings_text_label.setFont(self.plain_font)
@@ -1358,7 +1365,7 @@ class CustomCurrencyLineEdit(QLineEdit):
         super().__init__()
         self.setAlignment(Qt.AlignRight)
         self.setMaximumWidth(150)
-        self.setStyleSheet('background-color: white')
+        self.setStyleSheet('background: white')
 
     def focusOutEvent(self, evt):
         amount = self.text().strip().replace(',', '')
@@ -1385,7 +1392,7 @@ class CustomIntegerLineEdit(QLineEdit):
         super().__init__()
         self.setAlignment(Qt.AlignRight)
         self.setMaximumWidth(100)
-        self.setStyleSheet('background-color: white')
+        self.setStyleSheet('background: white')
 
     def focusOutEvent(self, evt):
         number = self.text().strip()
@@ -1399,6 +1406,6 @@ class CustomIntegerLineEdit(QLineEdit):
             self.setToolTip('')
             super(CustomIntegerLineEdit, self).focusOutEvent(evt)
         except ValueError:
-            self.setStyleSheet('color: red')
+            self.setStyleSheet('color: red; background: white;')
             self.setToolTip('Bad number')
             super(CustomIntegerLineEdit, self).focusOutEvent(evt)

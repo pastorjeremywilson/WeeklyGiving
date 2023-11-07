@@ -3,7 +3,7 @@
 
 Copyright 2022 Jeremy G. Wilson
 
-This file is a part of the Weekly Giving program (v.1.2)
+This file is a part of the Weekly Giving program (v.1.3)
 
 Weekly Giving is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License (GNU GPL)
@@ -161,7 +161,7 @@ class WeeklyGiving(QObject):
                 self.gui.changes = False
                 self.gui.save_button.setEnabled(False)
 
-            except (sqlite3.OperationalError, sqlite3.DatabaseError, sqlite3.NotSupportedError) as err:
+            except (sqlite3.OperationalError, sqlite3.DatabaseError, sqlite3.NotSupportedError, IndexError) as err:
                 self.write_log('*Critical error from WeeklyGiving.get_by_id: ' + str(err))
 
     def get_first_rec(self):
@@ -199,7 +199,10 @@ class WeeklyGiving(QObject):
         goon = self.check_for_changes()
         if goon:
             self.current_id_index = len(self.ids) - 1
-            self.get_by_id(self.ids[self.current_id_index])
+            if not len(self.ids) == 0:
+                self.get_by_id(self.ids[self.current_id_index])
+            else:
+                self.create_new_rec()
         
     def create_new_rec(self):
         """
@@ -208,15 +211,19 @@ class WeeklyGiving(QObject):
         """
         goon = self.check_for_changes()
         if goon:
-            newID = self.ids[len(self.ids) - 1] + 1
+            if not len(self.ids) == 0:
+                newID = self.ids[len(self.ids) - 1] + 1
+            else:
+                newID = 1
+
             from datetime import datetime
             date = datetime.today().strftime('%Y-%m-%d')
 
             values = '"' + str(newID) + '",'
-            for i in range(1, 58):
+            for i in range(1, self.max_checks + 28):
                 if i == 1:
                     values += '"' + date + '",'
-                elif i == 2 or i == 51:
+                elif i == 2 or i == 21 + self.max_checks:
                     values += '"",'
                 else:
                     values += '"0",'
@@ -234,6 +241,8 @@ class WeeklyGiving(QObject):
                 self.gui.id_combo_box.addItem(str(newID))
                 self.gui.date_combo_box.addItem(date, (1, newID))
                 self.ids.append(newID)
+
+                print('from create new rec:', self.ids, self.current_id_index)
 
                 self.get_by_id(newID)
 
@@ -767,7 +776,6 @@ class WeeklyGiving(QObject):
         Provides the user with a dialog where they can choose a date range from which to graph deposits. Creates and
         shows a line graph by calling graph_this.LineGraph.
         """
-        print('creating dialog')
         dialog = QDialog()
         layout = QGridLayout()
         dialog.setLayout(layout)
@@ -823,7 +831,7 @@ class WeeklyGiving(QObject):
         if answer == 1:
             from graph_this import LineGraph
             lg = LineGraph()
-            self.app.processEvents()
+            QApplication.processEvents()
 
             start = start_date.selectedDate()
             end = end_date.selectedDate()
@@ -838,6 +846,7 @@ class WeeklyGiving(QObject):
                 date = QDate(int(date_split[0]), int(date_split[1]), int(date_split[2]))
                 if date >= start and date <= end:
                     filtered_dates.append(item)
+            print(line_button.isChecked())
 
             if len(filtered_dates) > 0:
                 try:
@@ -845,6 +854,7 @@ class WeeklyGiving(QObject):
                         lg.pairs = filtered_dates
                         lg.graph_values_by_date_line()
                     else:
+                        print('creating bar graph')
                         lg.pairs = filtered_dates
                         lg.graph_values_by_date_bar()
                 except Exception:
@@ -894,7 +904,7 @@ class Startup(QRunnable):
             self.wg.spec_designations = self.wg.config_json['specialDesignations']
             self.wg.max_checks = self.wg.config_json['maxChecks']
             self.wg.name = self.wg.config_json['name']
-            self.wg.include_special_in_total = ['includeSpecial']
+            self.wg.include_special_in_total = self.wg.config_json['includeSpecial']
 
             self.loading_box.change_text.emit('Checking Database')
             self.loading_box.check_database_signal.emit()
@@ -906,8 +916,8 @@ class Startup(QRunnable):
             self.loading_box.end.emit()
             self.wg.start_gui.emit()
 
-        except Exception:
-            logging.exception('')
+        except Exception as ex:
+            self.wg.write_log('*Critical error from Startup.run: ' + str(ex))
 
 
 class LoadingBox(QDialog):
