@@ -1,6 +1,6 @@
 ('c:\\users\\pasto\\appdata\\local\\programs\\python\\python311\\lib\\site-packages\\jinja2-3.1.2-py3.11.egg',
  None,
- {'*.pyw', '*.pyc', '*.cp311-win_amd64.pyd', '*.pyd', '*.py', 'EGG-INFO'},
+ {'*.py', '*.cp311-win_amd64.pyd', '*.pyd', 'EGG-INFO', '*.pyw', '*.pyc'},
  'DATA',
  [('jinja2\\py.typed',
    'c:\\users\\pasto\\appdata\\local\\programs\\python\\python311\\lib\\site-packages\\jinja2-3.1.2-py3.11.egg\\jinja2\\py.typed',
