@@ -1155,16 +1155,18 @@ class Recalc(QRunnable):
         for i in range(11, 18):
             if len(self.all_values[i]) > 0:
                 try:
-                    special_tot += float(self.all_values[i])
-                except ValueError:
+                    special_tot += float(self.all_values[i].replace(',', ''))
+                except ValueError as ex:
+                    self.gui.lwg.write_log('*Error: ' + str(ex))
                     pass
 
         for i in range(18, len(self.all_values)):
             if len(self.all_values[i]) > 0:
                 try:
-                    checks_tot += float(self.all_values[i])
+                    checks_tot += float(self.all_values[i].replace(',', ''))
                     num_checks += 1
                 except ValueError:
+                    self.gui.lwg.write_log('*Error: ' + str(ex))
                     pass
 
         totals = [bills_tot, coins_tot, special_tot, checks_tot, num_checks]

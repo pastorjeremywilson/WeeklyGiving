@@ -25,17 +25,12 @@ https://www.ghostscript.com/licensing/index.html for more information.
 import json
 import logging
 import os
-import sqlite3
-import subprocess
-import time
-from datetime import datetime
-from os.path import exists
 
 from dateutil.parser import parse, ParserError
 from PyQt5.QtCore import QRegExp, Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QIcon, QFont, QPixmap
 from PyQt5.QtWidgets import QMainWindow, QWidget, QGridLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QLineEdit, \
-    QTextEdit, QVBoxLayout, QScrollArea, QMessageBox, QTextBrowser, QFileDialog, QApplication
+    QTextEdit, QVBoxLayout, QScrollArea, QMessageBox, QTextBrowser, QApplication
 
 
 class GUI(QMainWindow):
@@ -46,6 +41,7 @@ class GUI(QMainWindow):
     all_values = None
 
     plain_font = QFont('Helvetica', 11)
+    standard_font = plain_font
     bold_font = QFont('Helvetica', 11, QFont.Bold)
     title_font = QFont('Helvetica', 16, QFont.Bold)
     light_green = '#eaffe8'
@@ -908,6 +904,7 @@ class GUI(QMainWindow):
         Method to format and print the record data currently being displayed. Uses reportlab to create a PDF, which
         will then be printed.
         """
+        print('print_rec called')
         try:
             from reportlab.pdfgen import canvas
             from reportlab.lib.pagesizes import letter
@@ -1109,34 +1106,13 @@ class GUI(QMainWindow):
             canvas.setLineWidth(1.0)
             canvas.rect(lineStart, currentLine - 60, lineEnd - lineStart, 55)
             canvas.save()
+            print('canvas saved')
 
-            print('Opening print subprocess')
-            CREATE_NO_WINDOW = 0x08000000
-            p = subprocess.Popen(
-                [
-                    'ghostscript/gsprint.exe',
-                    print_file_loc,
-                    '-ghostscript',
-                    'ghostscript/gswin64.exe',
-                    '-query'],
-                creationflags=CREATE_NO_WINDOW,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-            print('Capturing print subprocess sdtout & stderr')
-            stdout, stderr = p.communicate()
-
-            str_stdout = stdout.decode('utf-8')
-            str_stderr = stderr.decode('uft-8')
-            self.lwg.write_log('gsprint.exe stdout: ' + str_stdout)
-            self.lwg.write_log('gsprint.exe stderr: ' + str_stderr)
-
-            if len(str_stderr) > 0:
-                QMessageBox.warning(
-                    self,
-                    'Print Error',
-                    '*Error Print system threw an error:\n\n' + str_stderr,
-                    QMessageBox.Ok
-                )
+            from print_dialog import PrintDialog
+            pd = PrintDialog(print_file_loc, self, QIcon('./resources/prevrec.png'), QIcon('./resources/nextrec.png'))
+            print('pd.exec()')
+            pd.exec()
+            print('after exec')
 
         except Exception as ex:
             self.lwg.write_log('*Error during printing: ' + str(ex))
