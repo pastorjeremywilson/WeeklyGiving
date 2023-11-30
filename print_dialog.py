@@ -3,7 +3,7 @@
 
 Copyright 2023 Jeremy G. Wilson
 
-This file is a part of the Weekly Giving program (v.1.4)
+This file is a part of the Weekly Giving program (v.1.4.1)
 
 Weekly Giving is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License (GNU GPL)
@@ -26,7 +26,7 @@ import subprocess
 
 import wmi as wmi
 from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QPushButton, QHBoxLayout, QComboBox, QDialog
+from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QPushButton, QHBoxLayout, QComboBox, QDialog, QSpinBox
 from fitz import fitz
 
 
@@ -57,8 +57,8 @@ class PrintDialog(QDialog):
         self.layout.setRowStretch(0, 1)
         self.layout.setRowStretch(1, 1)
         self.layout.setRowStretch(2, 1)
-        self.layout.setRowStretch(3, 100)
-        self.layout.setRowStretch(4, 1)
+        self.layout.setRowStretch(4, 100)
+        self.layout.setRowStretch(5, 1)
 
         self.setLayout(self.layout)
         self.setWindowTitle('Print')
@@ -77,7 +77,7 @@ class PrintDialog(QDialog):
         self.pdf_label = QLabel()
         self.pdf_label.setPixmap(self.pages[0])
         self.pdf_label.setFixedSize(self.pages[0].size())
-        self.layout.addWidget(self.pdf_label, 1, 0, 3, 1)
+        self.layout.addWidget(self.pdf_label, 1, 0, 4, 1)
 
         nav_button_widget = QWidget()
         nav_button_layout = QHBoxLayout()
@@ -105,7 +105,7 @@ class PrintDialog(QDialog):
         nav_button_layout.addWidget(next_button)
         nav_button_layout.addStretch()
 
-        self.layout.addWidget(nav_button_widget, 4, 0)
+        self.layout.addWidget(nav_button_widget, 5, 0)
 
         printer_label = QLabel('Send to:')
         printer_label.setFont(self.gui.bold_font)
@@ -115,13 +115,29 @@ class PrintDialog(QDialog):
         printer_combobox.setFont(self.gui.standard_font)
         self.layout.addWidget(printer_combobox, 1, 1)
 
+        copies_container = QWidget()
+        copies_layout = QHBoxLayout()
+        copies_container.setLayout(copies_layout)
+
+        copies_label = QLabel('# of Copies:')
+        copies_label.setFont(self.gui.standard_font)
+        copies_layout.addWidget(copies_label)
+        copies_layout.addStretch()
+
+        copies_spinbox = QSpinBox()
+        copies_spinbox.setRange(1, 100)
+        copies_spinbox.setValue(1)
+        copies_layout.addWidget(copies_spinbox)
+
+        self.layout.addWidget(copies_container, 2, 1)
+
         ok_cancel_buttons = QWidget()
         ok_cancel_layout = QHBoxLayout()
         ok_cancel_buttons.setLayout(ok_cancel_layout)
 
         ok_button = QPushButton('Print')
         ok_button.setFont(self.gui.standard_font)
-        ok_button.pressed.connect(lambda: self.do_print(printer_combobox.currentText()))
+        ok_button.pressed.connect(lambda: self.do_print(printer_combobox.currentText(), copies_spinbox.value()))
         ok_cancel_layout.addStretch()
         ok_cancel_layout.addWidget(ok_button)
         ok_cancel_layout.addSpacing(20)
@@ -132,7 +148,7 @@ class PrintDialog(QDialog):
         ok_cancel_layout.addWidget(cancel_button)
         ok_cancel_layout.addStretch()
 
-        self.layout.addWidget(ok_cancel_buttons, 2, 1)
+        self.layout.addWidget(ok_cancel_buttons, 3, 1)
 
     def get_printers(self):
         """
@@ -182,7 +198,7 @@ class PrintDialog(QDialog):
             self.page_label.setText('Page ' + str(self.current_page + 1) + ' of ' + str(self.num_pages))
             self.pdf_label.setPixmap(self.pages[self.current_page])
 
-    def do_print(self, printer):
+    def do_print(self, printer, copies):
         """
         Method to create the print job
         """
@@ -208,10 +224,11 @@ class PrintDialog(QDialog):
                 'ghostscript/gswin64c.exe'
             ]
 
-        p = subprocess.Popen(
-            command,
-            creationflags=CREATE_NO_WINDOW,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        for i in range(copies):
+            p = subprocess.Popen(
+                command,
+                creationflags=CREATE_NO_WINDOW,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         print('Capturing print subprocess sdtout & stderr')
         stdout, stderr = p.communicate()
