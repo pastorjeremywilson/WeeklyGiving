@@ -3,7 +3,7 @@
 
 Copyright 2022 Jeremy G. Wilson
 
-This file is a part of the Weekly Giving program (v.1.4.1)
+This file is a part of the Weekly Giving program (v.1.4.2)
 
 Weekly Giving is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License (GNU GPL)
@@ -901,10 +901,14 @@ class Startup(QRunnable):
             with open(self.wg.config_file_loc, 'r') as file:
                 self.wg.config_json = json.loads(file.read())
             self.wg.file_loc = self.wg.config_json['fileLoc']
+
             self.wg.spec_designations = self.wg.config_json['specialDesignations']
             self.wg.max_checks = self.wg.config_json['maxChecks']
             self.wg.name = self.wg.config_json['name']
-            self.wg.include_special_in_total = self.wg.config_json['includeSpecial']
+            if 'includeSpecial' in self.wg.config_json.keys():
+                self.wg.include_special_in_total = self.wg.config_json['includeSpecial']
+            else:
+                self.wg.include_special_in_total = True
 
             self.loading_box.change_text.emit('Checking Database')
             self.loading_box.check_database_signal.emit()

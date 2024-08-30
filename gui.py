@@ -3,7 +3,7 @@
 
 Copyright 2022 Jeremy G. Wilson
 
-This file is a part of the Weekly Giving program (v.1.4.1)
+This file is a part of the Weekly Giving program (v.1.4.2)
 
 Weekly Giving is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License (GNU GPL)
@@ -810,6 +810,8 @@ class GUI(QMainWindow):
         Method to take data stored in a dictionary and use it to populate the appropriate line edits in the gui
         :param dict result_dictionary: All data from the record to be displayed
         """
+        self.clear_all_values()
+
         try:
             self.id_combo_box.blockSignals(True)
             self.date_combo_box.blockSignals(True)
@@ -888,6 +890,11 @@ class GUI(QMainWindow):
             total = totals[0] + totals[1] + totals[3]
         self.total_total_label.setText(str('{:,.2f}'.format(float(total))))
         QApplication.processEvents()
+
+    def clear_all_values(self):
+        for widget in self.findChildren(QLineEdit):
+            widget.setText('')
+        self.notes_edit.setText('')
 
     def rewrite_designations(self, designations):
         """
