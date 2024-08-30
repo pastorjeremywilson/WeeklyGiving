@@ -23,7 +23,6 @@ it on your computer.
 
 *This information will get you started, but for more in-depth information*
 *on using Weekly Giving, please click “Help” and “Help Topics” in the menu.*
-<p>&nbsp;</p>
 
 ### Screen Layout
 
