@@ -1,36 +1,16 @@
-'''
-@author Jeremy G. Wilson
-
-Copyright 2022 Jeremy G. Wilson
-
-This file is a part of the Weekly Giving program (v.1.4.2)
-
-Weekly Giving is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License (GNU GPL)
-published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-The Weekly Giving program includes Artifex Software's GhostScript,
-licensed under the GNU Affero General Public License (GNU AGPL). See
-https://www.ghostscript.com/licensing/index.html for more information.
-'''
 import json
 import logging
 import os
+import time
 
+import win32print
+from PyQt6.QtPdf import QPdfDocument
+from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from dateutil.parser import parse, ParserError
-from PyQt5.QtCore import QRegExp, Qt, pyqtSignal, QSize
-from PyQt5.QtGui import QIcon, QFont, QPixmap
-from PyQt5.QtWidgets import QMainWindow, QWidget, QGridLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QLineEdit, \
-    QTextEdit, QVBoxLayout, QScrollArea, QMessageBox, QTextBrowser, QApplication
+from PyQt6.QtCore import QRegularExpression, Qt, pyqtSignal, QSize, QRectF
+from PyQt6.QtGui import QIcon, QFont, QPixmap, QPainter, QPageSize, QPageLayout
+from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QLineEdit, \
+    QTextEdit, QVBoxLayout, QScrollArea, QMessageBox, QTextBrowser, QApplication, QDialog
 
 
 class GUI(QMainWindow):
@@ -42,8 +22,8 @@ class GUI(QMainWindow):
 
     plain_font = QFont('Helvetica', 11)
     standard_font = plain_font
-    bold_font = QFont('Helvetica', 11, QFont.Bold)
-    title_font = QFont('Helvetica', 16, QFont.Bold)
+    bold_font = QFont('Helvetica', 11, QFont.Weight.Bold)
+    title_font = QFont('Helvetica', 16, QFont.Weight.Bold)
     light_green = '#eaffe8'
     dark_green = '#00641e'
 
@@ -72,13 +52,13 @@ class GUI(QMainWindow):
                 self,
                 'Changes Detected',
                 'Changes have been made. Save before Closing?',
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel)
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel)
 
-            if result == QMessageBox.Yes:
+            if result == QMessageBox.StandardButton.Yes:
                 self.lwg.save_rec()
                 self.lwg.do_backup()
                 event.accept()
-            elif result == QMessageBox.No:
+            elif result == QMessageBox.StandardButton.No:
                 self.lwg.do_backup()
                 event.accept()
             else:
@@ -160,7 +140,7 @@ class GUI(QMainWindow):
         save_action.triggered.connect(self.lwg.save_rec)
 
         print_action = file_menu.addAction('Print')
-        print_action.triggered.connect(self.print_rec)
+        print_action.triggered.connect(self.print_pdf)
 
         file_menu.addSeparator()
 
@@ -294,7 +274,7 @@ class GUI(QMainWindow):
         print_rec_button.setToolTip('Print this record')
         print_rec_button.setStyleSheet('padding: 10px; background-color: ' + self.light_green)
         print_rec_button.setMaximumWidth(40)
-        print_rec_button.pressed.connect(self.print_rec)
+        print_rec_button.pressed.connect(self.print_pdf)
         top_layout.addWidget(print_rec_button)
         top_layout.addSpacing(10)
 
@@ -536,6 +516,7 @@ class GUI(QMainWindow):
             line_edit = CustomCurrencyLineEdit()
             line_edit.setFont(self.plain_font)
             line_edit.setObjectName('special_edit' + str(i))
+            line_edit.setText('0.00')
             line_edit.textEdited.connect(self.on_change)
             special_line_layout.addWidget(line_edit)
 
@@ -620,62 +601,62 @@ class GUI(QMainWindow):
 
         num_checks_label = QLabel('Number of Checks:')
         num_checks_label.setFont(self.bold_font)
-        num_checks_label.setAlignment(Qt.AlignRight)
+        num_checks_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(num_checks_label, 1, 0)
 
         self.num_checks_total_label = QLabel()
         self.num_checks_total_label.setFont(self.plain_font)
-        self.num_checks_total_label.setAlignment(Qt.AlignRight)
+        self.num_checks_total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(self.num_checks_total_label, 1, 1)
 
         designated_label = QLabel('Total Designated Offerings:')
         designated_label.setFont(self.bold_font)
-        designated_label.setAlignment(Qt.AlignRight)
+        designated_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(designated_label, 2, 0)
 
         self.designated_total_label = QLabel()
         self.designated_total_label.setFont(self.plain_font)
-        self.designated_total_label.setAlignment(Qt.AlignRight)
+        self.designated_total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(self.designated_total_label, 2, 1)
 
         bills_label = QLabel('Total Bills:')
         bills_label.setFont(self.bold_font)
-        bills_label.setAlignment(Qt.AlignRight)
+        bills_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(bills_label, 4, 0)
 
         self.bills_total_label = QLabel()
         self.bills_total_label.setFont(self.plain_font)
-        self.bills_total_label.setAlignment(Qt.AlignRight)
+        self.bills_total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(self.bills_total_label, 4, 1)
 
         coins_label = QLabel('Total Coins:')
         coins_label.setFont(self.bold_font)
-        coins_label.setAlignment(Qt.AlignRight)
+        coins_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(coins_label, 5, 0)
 
         self.coins_total_label = QLabel()
         self.coins_total_label.setFont(self.plain_font)
-        self.coins_total_label.setAlignment(Qt.AlignRight)
+        self.coins_total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(self.coins_total_label, 5, 1)
 
         checks_label = QLabel('Total Checks:')
         checks_label.setFont(self.bold_font)
-        checks_label.setAlignment(Qt.AlignRight)
+        checks_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(checks_label, 6, 0)
 
         self.checks_total_label = QLabel()
         self.checks_total_label.setFont(self.plain_font)
-        self.checks_total_label.setAlignment(Qt.AlignRight)
+        self.checks_total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(self.checks_total_label, 6, 1)
 
         total_label = QLabel('Total:')
         total_label.setFont(self.bold_font)
-        total_label.setAlignment(Qt.AlignRight)
+        total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(total_label, 8, 0)
 
         self.total_total_label = QLabel()
         self.total_total_label.setFont(self.bold_font)
-        self.total_total_label.setAlignment(Qt.AlignRight)
+        self.total_total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(self.total_total_label, 8, 1)
 
         self.main_layout.addWidget(totals_widget, 4, 3)
@@ -694,7 +675,7 @@ class GUI(QMainWindow):
             checkmark_icon = './resources/checkmark_black.svg'
 
             biggest_width = 0
-            for label in self.special_widget.findChildren(QLabel, QRegExp('special_label*')):
+            for label in self.special_widget.findChildren(QLabel, QRegularExpression('special_label*')):
                 if label.width() > biggest_width:
                     biggest_width = label.width()
 
@@ -770,7 +751,7 @@ class GUI(QMainWindow):
             self.main_title_label.setText(self.lwg.name + ' Weekly Giving Report')
 
         except OSError as err:
-            self.write_log('*Critical error in WeeklyGiving.change_name: ' + str(err))
+            self.lwg.write_log('*Critical error in WeeklyGiving.change_name: ' + str(err))
 
     def include_special(self):
         """
@@ -838,7 +819,7 @@ class GUI(QMainWindow):
             self.penny_line_edit.setText(result_dictionary['coins_1'])
 
             #clear checks and special offering boxes
-            for widget in self.findChildren(QLineEdit, QRegExp('special_edit*')):
+            for widget in self.findChildren(QLineEdit, QRegularExpression('special_edit*')):
                 widget.setText('')
             for i in range(0, self.lwg.max_checks):
                 self.findChild(QLineEdit, 'checks_' + str(i)).setText('')
@@ -849,7 +830,7 @@ class GUI(QMainWindow):
                     specials.append(result_dictionary[key])
 
             index = 0
-            for widget in self.findChildren(QLineEdit, QRegExp('special_edit*')):
+            for widget in self.findChildren(QLineEdit, QRegularExpression('special_edit*')):
                 if len(specials[index]) > 0:
                     value = float(specials[index].replace(',', ''))
                     if value > 0:
@@ -901,228 +882,285 @@ class GUI(QMainWindow):
         Method to iterate the user's changed special designation labels and change them in the gui
         """
         index = 0
-        for widget in self.findChildren(QLabel, QRegExp('special_label*')):
+        for widget in self.findChildren(QLabel, QRegularExpression('special_label*')):
             widget.setText(designations[index])
             QApplication.processEvents()
             index += 1
 
-    def print_rec(self):
+    def make_pdf(self):
         """
         Method to format and print the record data currently being displayed. Uses reportlab to create a PDF, which
         will then be printed.
         """
-        print('print_rec called')
+
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import letter
+        # letter size = 612.0 x 792.0
+        # create variables based on letter-sized canvas
+        marginH = 100
+        marginV = 80
+        firstLine = 792 - marginV
+        lastLine = marginV
+        lineStart = marginH
+        lineEnd = 612 - marginH
+        lineHeight = 16
+
+        appData = os.getenv('APPDATA')
+        print_file_loc = appData + '/WeeklyGiving/print.pdf'
+        self.lwg.write_log('print_file_loc: ' + print_file_loc)
+
+        currentLine = firstLine
+        canvas = canvas.Canvas(print_file_loc, pagesize=letter)
+        canvas.setLineWidth(1.0)
+        canvas.setFont('Helvetica-Bold', 16)
+        canvas.drawString(lineStart, currentLine, self.lwg.name + ' Weekly Giving Report')
+        currentLine -= 5
+        canvas.line(lineStart, currentLine, lineEnd, currentLine)
+
+        currentLine -= lineHeight
+        canvas.setFont('Helvetica-Bold', 11)
+        canvas.drawString(lineStart, currentLine, 'Date:')
+        canvas.setFont('Helvetica', 11)
+        canvas.drawString(lineStart + 35, currentLine, self.date_line_edit.text())
+        canvas.setFont('Helvetica-Bold', 11)
+        canvas.drawString(lineStart + 120, currentLine, 'Prepared By:')
+        canvas.setFont('Helvetica', 11)
+        canvas.drawString(lineStart + 195, currentLine, self.prep_line_edit.text())
+        canvas.drawRightString(lineEnd, currentLine, 'ID: ' + self.id_num_label.text())
+
+        currentLine -= lineHeight
+        canvas.setFont('Helvetica-Bold', 11)
+        canvas.drawString(lineStart, currentLine, 'Signature:')
+        currentLine -= lineHeight
+        canvas.rect(lineStart, currentLine - 20, 300, 30)
+
+        topLineofEntries = currentLine - 50
+        currentLine = topLineofEntries
+        rememberCurrentLine = currentLine
+        canvas.drawString(lineStart, currentLine, '$100 Bills')
+        currentLine -= lineHeight
+        canvas.drawString(lineStart, currentLine, '$50 Bills')
+        currentLine -= lineHeight
+        canvas.drawString(lineStart, currentLine, '$20 Bills')
+        currentLine -= lineHeight
+        canvas.drawString(lineStart, currentLine, '$10 Bills')
+        currentLine -= lineHeight
+        canvas.drawString(lineStart, currentLine, '$5 Bills')
+        currentLine -= lineHeight
+        canvas.drawString(lineStart, currentLine, '$1 Bills')
+
+        billsArray = [
+            self.bills_100_line_edit.text(),
+            self.bills_50_line_edit.text(),
+            self.bills_20_line_edit.text(),
+            self.bills_10_line_edit.text(),
+            self.bills_5_line_edit.text(),
+            self.bills_1_line_edit.text()
+        ]
+
+        column1 = 180
+        canvas.setFont('Helvetica', 11)
+        currentLine = rememberCurrentLine
+        for num in billsArray:
+            canvas.drawRightString(column1, currentLine, num)
+            currentLine -= lineHeight
+
+        currentLine -= lineHeight
+        rememberCurrentLine = currentLine
+
+        canvas.setFont('Helvetica-Bold', 11)
+        canvas.drawString(lineStart, currentLine, '$1 Coins')
+        currentLine -= lineHeight
+        canvas.drawString(lineStart, currentLine, 'Quarters')
+        currentLine -= lineHeight
+        canvas.drawString(lineStart, currentLine, 'Dimes')
+        currentLine -= lineHeight
+        canvas.drawString(lineStart, currentLine, 'Nickels')
+        currentLine -= lineHeight
+        canvas.drawString(lineStart, currentLine, 'Pennies')
+        currentLine -= lineHeight
+
+        coinsArray = [
+            self.dollar_line_edit.text(),
+            self.quarter_line_edit.text(),
+            self.dime_line_edit.text(),
+            self.nickel_line_edit.text(),
+            self.penny_line_edit.text()
+        ]
+
+        canvas.setFont('Helvetica', 11)
+        currentLine = rememberCurrentLine
+        for num in coinsArray:
+            canvas.drawRightString(column1, currentLine, num)
+            currentLine -= lineHeight
+
+        column2 = 210
+        canvas.setFont('Helvetica-Bold', 11)
+        currentLine = topLineofEntries
+        canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec1'])
+        currentLine -= lineHeight
+        canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec2'])
+        currentLine -= lineHeight
+        canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec3'])
+        currentLine -= lineHeight
+        canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec4'])
+        currentLine -= lineHeight
+        canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec5'])
+        currentLine -= lineHeight
+        canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec6'])
+        currentLine -= lineHeight
+        canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec7'])
+        currentLine -= lineHeight
+
+        specialArray = []
+        for widget in self.findChildren(QLineEdit, QRegularExpression('special_edit*')):
+            specialArray.append(widget.text())
+        column3 = 400
+        canvas.setFont('Helvetica', 11)
+        currentLine = topLineofEntries
+        for num in specialArray:
+            if len(num) > 0:
+                value = float(num.replace(',', ''))
+                if value > 0:
+                    canvas.drawRightString(column3, currentLine, '${:,.2f}'.format(value))
+                    currentLine -= lineHeight
+
+        column4 = 440
+        canvas.setFont('Helvetica-Bold', 11)
+        currentLine = topLineofEntries + lineHeight
+        canvas.drawString(column4, currentLine, 'Checks:')
+        currentLine = topLineofEntries
+        for i in range(1, 31):
+            canvas.drawString(column4, currentLine, str(i))
+            currentLine -= lineHeight
+
+        checksArray = []
+        for widget in self.findChildren(QLineEdit, QRegularExpression('check*')):
+            checksArray.append(widget.text())
+
+        column5 = lineEnd  # prev 500
+        canvas.setFont('Helvetica', 11)
+        currentLine = topLineofEntries
+        for num in checksArray:
+            if len(num) > 0:
+                value = float(num.replace(',', ''))
+                if value > 0:
+                    canvas.drawRightString(column5, currentLine, '${:,.2f}'.format(value))
+                    currentLine -= lineHeight
+
+        currentLine = 300
+        canvas.setFont('Helvetica-Bold', 12)
+        canvas.drawString(lineStart + 20, currentLine, 'Total Designated Offerings:')
+        currentLine -= lineHeight * 2
+        canvas.drawString(lineStart + 20, currentLine, 'Total Bills:')
+        currentLine -= lineHeight
+        canvas.drawString(lineStart + 20, currentLine, 'Total Coins:')
+        currentLine -= lineHeight
+        canvas.drawString(lineStart + 20, currentLine, 'Total Checks:')
+        currentLine -= lineHeight * 2
+        canvas.setFont('Helvetica-BoldOblique', 14)
+        canvas.drawString(lineStart + 20, currentLine, 'Total Deposit:')
+        currentLine -= lineHeight * 2
+        canvas.setFont('Helvetica-Bold', 12)
+        canvas.drawString(lineStart + 20, currentLine, 'Number of Checks:')
+
+        currentLine = 300
+        column2 = 370
+        canvas.setFont('Helvetica', 12)
+        canvas.drawRightString(column2, currentLine, self.designated_total_label.text())
+        currentLine -= lineHeight * 2
+        canvas.drawRightString(column2, currentLine, self.bills_total_label.text())
+        currentLine -= lineHeight
+        canvas.drawRightString(column2, currentLine, self.coins_total_label.text())
+        currentLine -= lineHeight
+        canvas.drawRightString(column2, currentLine, self.checks_total_label.text())
+        currentLine -= lineHeight * 2
+        canvas.setFont('Helvetica-BoldOblique', 14)
+        canvas.drawRightString(column2, currentLine, self.total_total_label.text())
+        currentLine -= lineHeight * 2
+        canvas.setFont('Helvetica', 12)
+        canvas.drawRightString(column2, currentLine, self.num_checks_total_label.text())
+
+        currentLine += lineHeight * 2
+        canvas.setLineWidth(2.0)
+        canvas.rect(lineStart, currentLine - 20, 390 - lineStart, 150)
+
+        currentLine -= lineHeight * 5
+        canvas.drawString(lineStart, currentLine, 'Notes:')
+        currentLine -= lineHeight * 1.5
+        canvas.drawString(lineStart + 20, currentLine, self.notes_edit.toPlainText().strip())
+        currentLine += lineHeight * 1.5
+        canvas.setLineWidth(1.0)
+        canvas.rect(lineStart, currentLine - 60, lineEnd - lineStart, 55)
+
         try:
-            from reportlab.pdfgen import canvas
-            from reportlab.lib.pagesizes import letter
-            # letter size = 612.0 x 792.0
-            # create variables based on letter-sized canvas
-            marginH = 100
-            marginV = 80
-            firstLine = 792 - marginV
-            lastLine = marginV
-            lineStart = marginH
-            lineEnd = 612 - marginH
-            lineHeight = 16
-
-            appData = os.getenv('APPDATA')
-            print_file_loc = appData + '/WeeklyGiving/print.pdf'
-            self.lwg.write_log('print_file_loc: ' + print_file_loc)
-
-            currentLine = firstLine
-            canvas = canvas.Canvas(print_file_loc, pagesize=letter)
-            canvas.setLineWidth(1.0)
-            canvas.setFont('Helvetica-Bold', 16)
-            canvas.drawString(lineStart, currentLine, self.lwg.name + ' Weekly Giving Report')
-            currentLine -= 5
-            canvas.line(lineStart, currentLine, lineEnd, currentLine)
-
-            currentLine -= lineHeight
-            canvas.setFont('Helvetica-Bold', 11)
-            canvas.drawString(lineStart, currentLine, 'Date:')
-            canvas.setFont('Helvetica', 11)
-            canvas.drawString(lineStart + 35, currentLine, self.date_line_edit.text())
-            canvas.setFont('Helvetica-Bold', 11)
-            canvas.drawString(lineStart + 120, currentLine, 'Prepared By:')
-            canvas.setFont('Helvetica', 11)
-            canvas.drawString(lineStart + 195, currentLine, self.prep_line_edit.text())
-            canvas.drawRightString(lineEnd, currentLine, 'ID: ' + self.id_num_label.text())
-
-            currentLine -= lineHeight
-            canvas.setFont('Helvetica-Bold', 11)
-            canvas.drawString(lineStart, currentLine, 'Signature:')
-            currentLine -= lineHeight
-            canvas.rect(lineStart, currentLine - 20, 300, 30)
-
-            topLineofEntries = currentLine - 50
-            currentLine = topLineofEntries
-            rememberCurrentLine = currentLine
-            canvas.drawString(lineStart, currentLine, '$100 Bills')
-            currentLine -= lineHeight
-            canvas.drawString(lineStart, currentLine, '$50 Bills')
-            currentLine -= lineHeight
-            canvas.drawString(lineStart, currentLine, '$20 Bills')
-            currentLine -= lineHeight
-            canvas.drawString(lineStart, currentLine, '$10 Bills')
-            currentLine -= lineHeight
-            canvas.drawString(lineStart, currentLine, '$5 Bills')
-            currentLine -= lineHeight
-            canvas.drawString(lineStart, currentLine, '$1 Bills')
-
-            billsArray = [
-                self.bills_100_line_edit.text(),
-                self.bills_50_line_edit.text(),
-                self.bills_20_line_edit.text(),
-                self.bills_10_line_edit.text(),
-                self.bills_5_line_edit.text(),
-                self.bills_1_line_edit.text()
-            ]
-
-            column1 = 180
-            canvas.setFont('Helvetica', 11)
-            currentLine = rememberCurrentLine
-            for num in billsArray:
-                canvas.drawRightString(column1, currentLine, num)
-                currentLine -= lineHeight
-
-            currentLine -= lineHeight
-            rememberCurrentLine = currentLine
-
-            canvas.setFont('Helvetica-Bold', 11)
-            canvas.drawString(lineStart, currentLine, '$1 Coins')
-            currentLine -= lineHeight
-            canvas.drawString(lineStart, currentLine, 'Quarters')
-            currentLine -= lineHeight
-            canvas.drawString(lineStart, currentLine, 'Dimes')
-            currentLine -= lineHeight
-            canvas.drawString(lineStart, currentLine, 'Nickels')
-            currentLine -= lineHeight
-            canvas.drawString(lineStart, currentLine, 'Pennies')
-            currentLine -= lineHeight
-
-            coinsArray = [
-                self.dollar_line_edit.text(),
-                self.quarter_line_edit.text(),
-                self.dime_line_edit.text(),
-                self.nickel_line_edit.text(),
-                self.penny_line_edit.text()
-            ]
-
-            canvas.setFont('Helvetica', 11)
-            currentLine = rememberCurrentLine
-            for num in coinsArray:
-                canvas.drawRightString(column1, currentLine, num)
-                currentLine -= lineHeight
-
-            column2 = 210
-            canvas.setFont('Helvetica-Bold', 11)
-            currentLine = topLineofEntries
-            canvas.drawString(column2, currentLine, 'Love Offerings')
-            currentLine -= lineHeight
-            canvas.drawString(column2, currentLine, 'Equip Offerings')
-            currentLine -= lineHeight
-            canvas.drawString(column2, currentLine, 'Seminary Offerings')
-            currentLine -= lineHeight
-            canvas.drawString(column2, currentLine, 'Growth Offerings')
-            currentLine -= lineHeight
-            canvas.drawString(column2, currentLine, 'Camp Offerings')
-            currentLine -= lineHeight
-            canvas.drawString(column2, currentLine, 'Sunday School Offerings')
-            currentLine -= lineHeight
-            canvas.drawString(column2, currentLine, 'Other Designations')
-            currentLine -= lineHeight
-
-            specialArray = []
-            for widget in self.findChildren(QLineEdit, QRegExp('special_edit*')):
-                specialArray.append(widget.text())
-            column3 = 400
-            canvas.setFont('Helvetica', 11)
-            currentLine = topLineofEntries
-            for num in specialArray:
-                if len(num) > 0:
-                    value = float(num.replace(',', ''))
-                    if value > 0:
-                        canvas.drawRightString(column3, currentLine, '${:,.2f}'.format(value))
-                        currentLine -= lineHeight
-
-            column4 = 440
-            canvas.setFont('Helvetica-Bold', 11)
-            currentLine = topLineofEntries + lineHeight
-            canvas.drawString(column4, currentLine, 'Checks:')
-            currentLine = topLineofEntries
-            for i in range(1, 31):
-                canvas.drawString(column4, currentLine, str(i))
-                currentLine -= lineHeight
-
-            checksArray = []
-            for widget in self.findChildren(QLineEdit, QRegExp('check*')):
-                checksArray.append(widget.text())
-
-            column5 = lineEnd  # prev 500
-            canvas.setFont('Helvetica', 11)
-            currentLine = topLineofEntries
-            for num in checksArray:
-                if len(num) > 0:
-                    value = float(num.replace(',', ''))
-                    if value > 0:
-                        canvas.drawRightString(column5, currentLine, '${:,.2f}'.format(value))
-                        currentLine -= lineHeight
-
-            currentLine = 300
-            canvas.setFont('Helvetica-Bold', 12)
-            canvas.drawString(lineStart + 20, currentLine, 'Total Designated Offerings:')
-            currentLine -= lineHeight * 2
-            canvas.drawString(lineStart + 20, currentLine, 'Total Bills:')
-            currentLine -= lineHeight
-            canvas.drawString(lineStart + 20, currentLine, 'Total Coins:')
-            currentLine -= lineHeight
-            canvas.drawString(lineStart + 20, currentLine, 'Total Checks:')
-            currentLine -= lineHeight * 2
-            canvas.setFont('Helvetica-BoldOblique', 14)
-            canvas.drawString(lineStart + 20, currentLine, 'Total Deposit:')
-            currentLine -= lineHeight * 2
-            canvas.setFont('Helvetica-Bold', 12)
-            canvas.drawString(lineStart + 20, currentLine, 'Number of Checks:')
-
-            currentLine = 300
-            column2 = 370
-            canvas.setFont('Helvetica', 12)
-            canvas.drawRightString(column2, currentLine, self.designated_total_label.text())
-            currentLine -= lineHeight * 2
-            canvas.drawRightString(column2, currentLine, self.bills_total_label.text())
-            currentLine -= lineHeight
-            canvas.drawRightString(column2, currentLine, self.coins_total_label.text())
-            currentLine -= lineHeight
-            canvas.drawRightString(column2, currentLine, self.checks_total_label.text())
-            currentLine -= lineHeight * 2
-            canvas.setFont('Helvetica-BoldOblique', 14)
-            canvas.drawRightString(column2, currentLine, self.total_total_label.text())
-            currentLine -= lineHeight * 2
-            canvas.setFont('Helvetica', 12)
-            canvas.drawRightString(column2, currentLine, self.num_checks_total_label.text())
-
-            currentLine += lineHeight * 2
-            canvas.setLineWidth(2.0)
-            canvas.rect(lineStart, currentLine - 20, 390 - lineStart, 150)
-
-            currentLine -= lineHeight * 5
-            canvas.drawString(lineStart, currentLine, 'Notes:')
-            currentLine -= lineHeight * 1.5
-            canvas.drawString(lineStart + 20, currentLine, self.notes_edit.toPlainText().strip())
-            currentLine += lineHeight * 1.5
-            canvas.setLineWidth(1.0)
-            canvas.rect(lineStart, currentLine - 60, lineEnd - lineStart, 55)
             canvas.save()
-            print('canvas saved')
 
-            from print_dialog import PrintDialog
-            pd = PrintDialog(print_file_loc, self, QIcon('./resources/prevrec.png'), QIcon('./resources/nextrec.png'))
-            print('pd.exec()')
-            pd.exec()
-            print('after exec')
+            return print_file_loc
 
         except Exception as ex:
             self.lwg.write_log('*Error during printing: ' + str(ex))
+
+    def print_pdf(self):
+        popup = Popup(self, 'Preparing Printout...')
+        popup.show()
+        QApplication.processEvents()
+
+        defaults = {"DesiredAccess": win32print.PRINTER_ALL_ACCESS}
+        printer_handle = win32print.OpenPrinter(win32print.GetDefaultPrinter(), defaults)
+        properties = win32print.GetPrinter(printer_handle, 2)
+        win32print.SetPrinter(printer_handle, 2, properties, 0)
+
+        pdf_doc = QPdfDocument(self)
+        pdf_doc.load(self.make_pdf())
+
+        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+        printer.setDocName('Weekly Giving Report')
+        printer.setPageSize(QPageSize(QPageSize.PageSizeId.Letter))
+        printer.setPageOrientation(QPageLayout.Orientation.Portrait)
+
+        print_dialog = QPrintDialog(printer)
+        painter = QPainter(print_dialog)
+        painter.drawImage(QRectF(0, 0, 1100, 850), pdf_doc.render(0, QSize(1100, 850)))
+
+        popup.deleteLater()
+        result = print_dialog.exec()
+
+        if result == QPrintDialog.DialogCode.Accepted:
+            self.do_print(pdf_doc, printer)
+
+        win32print.ClosePrinter(printer_handle)
+
+    def do_print(self, pdf_doc, printer):
+        range_list = printer.pageRanges().toRangeList()
+        pages_to_print = []
+        if len(range_list) > 0:
+            for i in range(len(range_list)):
+                for j in range(range_list[i].from_, range_list[i].to + 1):
+                    pages_to_print.append(j - 1)
+        else:
+            for i in range(pdf_doc.pageCount()):
+                pages_to_print.append(i)
+
+        page_rect_inch = printer.pageRect(QPrinter.Unit.Inch)
+        dpi_x = printer.physicalDpiX()
+        dpi_y = printer.physicalDpiY()
+        rect = QRectF(
+            0,
+            0,
+            page_rect_inch.width() * dpi_x,
+            page_rect_inch.height() * dpi_y
+        )
+        painter = QPainter(printer)
+        painter.begin(printer)
+        do_new_page = False
+        for page in pages_to_print:
+            if do_new_page:
+                printer.newPage()
+            render = pdf_doc.render(page, QSize(int(rect.width()), int(rect.height())))
+            painter.drawImage(rect, render)
+            do_new_page = True
+        painter.end()
 
     def refresh_combo_boxes(self):
         """
@@ -1151,16 +1189,14 @@ class GUI(QMainWindow):
         self.help_window.setFixedSize(1000, 800)
         window_layout = QVBoxLayout()
         self.help_window.setLayout(window_layout)
-        try:
-            help_widget = QWidget()
-            help_widget.setMaximumSize(940, 1200)
-            help_layout = QVBoxLayout()
-            help_widget.setLayout(help_layout)
-        except Exception:
-            logging.exception('')
+        
+        help_widget = QWidget()
+        help_widget.setMaximumSize(940, 1200)
+        help_layout = QVBoxLayout()
+        help_widget.setLayout(help_layout)
 
         title_label = QLabel('Weekly Giving Help')
-        title_label.setFont(QFont("Helvetica", 22, QFont.Bold))
+        title_label.setFont(QFont("Helvetica", 22, QFont.Weight.Bold))
         help_layout.addWidget(title_label)
 
         separator0 = QWidget()
@@ -1174,7 +1210,7 @@ class GUI(QMainWindow):
 
         toolbar_image_label = QLabel()
         toolbar_pixmap = QPixmap('resources/navBar.png')
-        toolbar_pixmap = toolbar_pixmap.scaledToWidth(900, Qt.SmoothTransformation)
+        toolbar_pixmap = toolbar_pixmap.scaledToWidth(900, Qt.TransformationMode.SmoothTransformation)
         toolbar_image_label.setPixmap(toolbar_pixmap)
         help_layout.addWidget(toolbar_image_label)
 
@@ -1315,6 +1351,7 @@ class GUI(QMainWindow):
         about_layout.addWidget(about_text)
         self.about_widget.show()
 
+
 class CustomDateLineEdit(QLineEdit):
     """
     Class implementing QLineEdit which overrides focusOutEvent, allowing for automatic formatting and invalid input
@@ -1339,6 +1376,7 @@ class CustomDateLineEdit(QLineEdit):
             self.setToolTip('Bad date format. Try YYYY-MM-DD.')
             super(CustomDateLineEdit, self).focusOutEvent(evt)
 
+
 class CustomCurrencyLineEdit(QLineEdit):
     """
     Class implementing QLineEdit which overrides focusOutEvent, allowing for automatic formatting and invalid input
@@ -1346,7 +1384,7 @@ class CustomCurrencyLineEdit(QLineEdit):
     """
     def __init__(self):
         super().__init__()
-        self.setAlignment(Qt.AlignRight)
+        self.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.setMaximumWidth(150)
         self.setStyleSheet('background: white')
 
@@ -1366,6 +1404,7 @@ class CustomCurrencyLineEdit(QLineEdit):
             self.setToolTip('Bad number')
             super(CustomCurrencyLineEdit, self).focusOutEvent(evt)
 
+
 class CustomIntegerLineEdit(QLineEdit):
     """
     Class implementing QLineEdit which overrides focusOutEvent, allowing for automatic formatting and invalid input
@@ -1373,7 +1412,7 @@ class CustomIntegerLineEdit(QLineEdit):
     """
     def __init__(self):
         super().__init__()
-        self.setAlignment(Qt.AlignRight)
+        self.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.setMaximumWidth(100)
         self.setStyleSheet('background: white')
 
@@ -1392,3 +1431,23 @@ class CustomIntegerLineEdit(QLineEdit):
             self.setStyleSheet('color: red; background: white;')
             self.setToolTip('Bad number')
             super(CustomIntegerLineEdit, self).focusOutEvent(evt)
+
+
+class Popup(QWidget):
+    def __init__(self, gui, message):
+        super().__init__()
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
+        self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
+        self.setAutoFillBackground(True)
+        self.setStyleSheet(f'background: {gui.dark_green}')
+        layout = QVBoxLayout(self)
+
+        label = QLabel(message)
+        label.setContentsMargins(20, 10, 20, 10)
+        label.setStyleSheet(f'background: {gui.dark_green}; color: white; border: 3px solid white;')
+        label.setFont(gui.title_font)
+        layout.addWidget(label)
+
+        self.adjustSize()
+        self.move(int(gui.width() / 2) - int(self.width() / 2), int(gui.height() / 2) - int(self.height() / 2))
+

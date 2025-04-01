@@ -1,9 +1,9 @@
 '''
 @author Jeremy G. Wilson
 
-Copyright 2022 Jeremy G. Wilson
+Copyright 2025 Jeremy G. Wilson
 
-This file is a part of the Weekly Giving program (v.1.4.2)
+The files contained herein are all part of the Weekly Giving program (v.1.5.0)
 
 Weekly Giving is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License (GNU GPL)
@@ -17,10 +17,6 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-The Weekly Giving program includes Artifex Software's GhostScript,
-licensed under the GNU Affero General Public License (GNU AGPL). See
-https://www.ghostscript.com/licensing/index.html for more information.
 '''
 
 import json
@@ -33,9 +29,9 @@ from os.path import exists
 import os
 import shutil
 
-from PyQt5.QtCore import QDate, Qt, QRegExp, QRunnable, QObject, QThreadPool, pyqtSignal
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QApplication, QFileDialog, QDialog, QGridLayout, QCalendarWidget, QPushButton, QLabel, \
+from PyQt6.QtCore import QDate, Qt, QRegularExpression, QRunnable, QObject, QThreadPool, pyqtSignal
+from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import QApplication, QFileDialog, QDialog, QGridLayout, QCalendarWidget, QPushButton, QLabel, \
     QMessageBox, QButtonGroup, QRadioButton, QWidget, QHBoxLayout, QLineEdit, QTextEdit, QVBoxLayout, QSpinBox
 
 from gui import GUI
@@ -56,6 +52,9 @@ class WeeklyGiving(QObject):
 
     def __init__(self):
         super().__init__()
+
+        os.chdir(os.path.dirname(__file__))
+
         self.start_gui.connect(self.init_gui)
 
         self.thread_pool = QThreadPool()
@@ -259,10 +258,10 @@ class WeeklyGiving(QObject):
             None,
             'Delete Record',
             'Really delete this record? This action cannot be undone.',
-            QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
         )
 
-        if response == QMessageBox.Yes:
+        if response == QMessageBox.StandardButton.Yes:
             try:
                 conn = sqlite3.connect(self.DATABASE)
                 cur = conn.cursor()
@@ -310,12 +309,12 @@ class WeeklyGiving(QObject):
         sql += '", coins_1 = "' + self.gui.penny_line_edit.text()
 
         counter = 1
-        for widget in self.gui.findChildren(QLineEdit, QRegExp('special_edit*')):
+        for widget in self.gui.findChildren(QLineEdit, QRegularExpression('special_edit*')):
             sql += '", spec' + str(counter) + ' = "' + widget.text()
             counter += 1
 
         counter = 0
-        for widget in self.gui.findChildren(QLineEdit, QRegExp('check*')):
+        for widget in self.gui.findChildren(QLineEdit, QRegularExpression('check*')):
             sql += '", checks_' + str(counter) + ' = "' + widget.text()
             counter += 1
         sql += '", quantity_of_checks = "' + self.gui.num_checks_total_label.text()
@@ -372,13 +371,13 @@ class WeeklyGiving(QObject):
                 None,
                 'Changes Detected',
                 'Save changes before proceeding?',
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
             )
             
-            if response == QMessageBox.Yes:
+            if response == QMessageBox.StandardButton.Yes:
                 self.save_rec()
                 return True
-            elif response == QMessageBox.No:
+            elif response == QMessageBox.StandardButton.No:
                 return True
             else:
                 return False
@@ -597,10 +596,10 @@ class WeeklyGiving(QObject):
                         'You have chosen a maxumum number of checks that is fewer than you have now. If you have '
                         'previously saved information in those higher check numbers, it will be irretrievablty '
                         'lost. Continue?',
-                        QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
                     )
 
-                    if response == QMessageBox.Yes:
+                    if response == QMessageBox.StandardButton.Yes:
                         # drop any superfluous check columns
                         for i in range(new_max_checks, highest_num + 1):
                             sql = 'ALTER TABLE ' + self.table_name + ' DROP COLUMN "checks_' + str(i) + '";'
@@ -717,24 +716,24 @@ class WeeklyGiving(QObject):
                         + os.getenv("APPDATA")
                         + 'log.txt for more information.\n\n'
                         + formatted_text,
-                    QMessageBox.Ok
+                    QMessageBox.StandardButton.Ok
                 )
             elif '*File' in text:
                 QMessageBox().critical(
                     self.gui,
                     'Error',
                     'Database file not found. Exiting.',
-                    QMessageBox.Ok
+                    QMessageBox.StandardButton.Ok
                 )
             elif '*Error' in text:
                 QMessageBox().warning(
                     self.gui,
                     'Error',
-                    'An error has occurred:\n\n' + text + '\n\nTry again, or view the log at\n'
+                    'An error has occurred:\n\n' + formatted_text + '\n\nTry again, or view the log at\n'
                         + os.getenv("APPDATA")
                         + 'log.txt for more information.\n\n'
                         + formatted_text,
-                    QMessageBox.Ok
+                    QMessageBox.StandardButton.Ok
                 )
             logFileLoc = os.getenv('APPDATA') + '/WeeklyGiving/log.txt'
             logfile = open(logFileLoc, 'a')
@@ -760,7 +759,7 @@ class WeeklyGiving(QObject):
 
         log_text_edit = QTextEdit()
         log_text_edit.setReadOnly(True)
-        log_text_edit.setLineWrapMode(QTextEdit.NoWrap)
+        log_text_edit.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
         log_text_edit.setText(log_text)
         log_layout.addWidget(log_text_edit)
 
@@ -819,7 +818,7 @@ class WeeklyGiving(QObject):
         go_button = QPushButton('Go')
         go_button.setMaximumWidth(100)
         go_button.pressed.connect(lambda: dialog.done(1))
-        layout.addWidget(go_button, 3, 0, Qt.AlignRight)
+        layout.addWidget(go_button, 3, 0, Qt.AlignmentFlag.AlignRight)
 
         cancel_button = QPushButton('Cancel')
         cancel_button.setMaximumWidth(100)
@@ -829,6 +828,11 @@ class WeeklyGiving(QObject):
         answer = dialog.exec()
 
         if answer == 1:
+            from gui import Popup
+            popup = Popup(self.gui, 'Creating Graph...')
+            popup.show()
+            QApplication.processEvents()
+
             from graph_this import LineGraph
             lg = LineGraph()
             QApplication.processEvents()
@@ -846,7 +850,6 @@ class WeeklyGiving(QObject):
                 date = QDate(int(date_split[0]), int(date_split[1]), int(date_split[2]))
                 if date >= start and date <= end:
                     filtered_dates.append(item)
-            print(line_button.isChecked())
 
             if len(filtered_dates) > 0:
                 try:
@@ -854,11 +857,12 @@ class WeeklyGiving(QObject):
                         lg.pairs = filtered_dates
                         lg.graph_values_by_date_line()
                     else:
-                        print('creating bar graph')
                         lg.pairs = filtered_dates
                         lg.graph_values_by_date_bar()
-                except Exception:
-                    logging.exception('')
+                except Exception as ex:
+                    self.write_log(str(ex))
+
+            popup.deleteLater()
 
 
 class Startup(QRunnable):
@@ -945,7 +949,7 @@ class LoadingBox(QDialog):
         self.init_components()
 
     def init_components(self):
-        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setModal(True)
         self.setMinimumWidth(400)
         self.setStyleSheet('background-color: #00641e')
@@ -955,7 +959,7 @@ class LoadingBox(QDialog):
 
         self.status_label = QLabel('Starting...')
         self.status_label.setAutoFillBackground(False)
-        self.status_label.setFont(QFont('Helvetica', 16, QFont.Bold))
+        self.status_label.setFont(QFont('Helvetica', 16, QFont.Weight.Bold))
         self.status_label.setStyleSheet('color: white')
         layout.addWidget(self.status_label, 0, 0)
 
@@ -984,13 +988,13 @@ class LoadingBox(QDialog):
                     None,
                     'File Not Found',
                     'Database file not found. Would you like to locate it? (Choose "No" to create a new database)',
-                    QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel)
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel)
                 print(str(response))
                 self.wg.write_log('Response to locating database file: ' + str(response))
             except Exception:
                 logging.exception('')
 
-            if response == QMessageBox.Yes:
+            if response == QMessageBox.StandardButton.Yes:
                 file_dialog = QFileDialog()
                 file_dialog.setModal(True)
                 db_file = file_dialog.getOpenFileName(
@@ -1005,7 +1009,7 @@ class LoadingBox(QDialog):
                 self.wg.config_json['fileLoc'] = db_file[0]
                 with open(self.wg.config_file_loc, 'w') as file:
                     file.write(json.dumps(self.wg.config_json))
-            elif response == QMessageBox.No:
+            elif response == QMessageBox.StandardButton.No:
                 try:
                     print('setting db file loc and table name')
                     self.wg.DATABASE = self.wg.appData + '/WeeklyGiving/weekly_giving.db'
@@ -1169,7 +1173,7 @@ class Recalc(QRunnable):
                 try:
                     checks_tot += float(self.all_values[i].replace(',', ''))
                     num_checks += 1
-                except ValueError:
+                except ValueError as ex:
                     self.gui.lwg.write_log('*Error: ' + str(ex))
                     pass
 
