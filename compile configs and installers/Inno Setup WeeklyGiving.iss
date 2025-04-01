@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Weekly Giving"
-#define MyAppVersion "1.5.0"
+#define MyAppVersion "1.5.1"
 #define MyAppExeName "Weekly Giving.exe"
 
 [Setup]
@@ -20,7 +20,7 @@ WizardSmallImageFile = C:\Users\pasto\Desktop\output\Weekly Giving\_internal\res
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-OutputDir=C:\Users\pasto\Desktop\output\Weekly Giving
+OutputDir=C:\Users\pasto\Desktop\output\Weekly Giving\installer
 OutputBaseFilename=Setup Weekly Giving v.{#MyAppVersion}
 SetupIconFile=C:\Users\pasto\Desktop\output\Weekly Giving\_internal\resources\icon.ico
 Compression=lzma

@@ -5,7 +5,7 @@ a = Analysis(
     ['..\\weekly_giving.py'],
     pathex=[],
     binaries=[],
-    datas=[('../resources', 'resources/'), ('../reportlab', 'reportlab/'), ('../ghostscript', 'ghostscript/')],
+    datas=[('../resources', 'resources/'), ('../README.md', '.'), ('../README.html', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
