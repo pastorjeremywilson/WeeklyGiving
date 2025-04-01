@@ -1,16 +1,14 @@
 import json
 import logging
 import os
-import time
 
-import win32print
 from PyQt6.QtPdf import QPdfDocument
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from dateutil.parser import parse, ParserError
 from PyQt6.QtCore import QRegularExpression, Qt, pyqtSignal, QSize, QRectF
 from PyQt6.QtGui import QIcon, QFont, QPixmap, QPainter, QPageSize, QPageLayout
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QLineEdit, \
-    QTextEdit, QVBoxLayout, QScrollArea, QMessageBox, QTextBrowser, QApplication, QDialog
+    QTextEdit, QVBoxLayout, QScrollArea, QMessageBox, QTextBrowser, QApplication
 
 
 class GUI(QMainWindow):
@@ -1106,11 +1104,6 @@ class GUI(QMainWindow):
         popup.show()
         QApplication.processEvents()
 
-        defaults = {"DesiredAccess": win32print.PRINTER_ALL_ACCESS}
-        printer_handle = win32print.OpenPrinter(win32print.GetDefaultPrinter(), defaults)
-        properties = win32print.GetPrinter(printer_handle, 2)
-        win32print.SetPrinter(printer_handle, 2, properties, 0)
-
         pdf_doc = QPdfDocument(self)
         pdf_doc.load(self.make_pdf())
 
@@ -1128,8 +1121,6 @@ class GUI(QMainWindow):
 
         if result == QPrintDialog.DialogCode.Accepted:
             self.do_print(pdf_doc, printer)
-
-        win32print.ClosePrinter(printer_handle)
 
     def do_print(self, pdf_doc, printer):
         range_list = printer.pageRanges().toRangeList()
