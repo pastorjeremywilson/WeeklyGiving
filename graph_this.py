@@ -1,34 +1,9 @@
-'''
-@author Jeremy G. Wilson
-
-Copyright 2022 Jeremy G. Wilson
-
-This file is a part of the Weekly Giving program (v.1.4.2)
-
-Weekly Giving is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License (GNU GPL)
-published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-The Weekly Giving program includes Artifex Software's GhostScript,
-licensed under the GNU Affero General Public License (GNU AGPL). See
-https://www.ghostscript.com/licensing/index.html for more information.
-'''
-
 import datetime
 
 import matplotlib.pyplot as plot
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QVBoxLayout, QLabel, QWidget, QApplication
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import QVBoxLayout, QLabel, QWidget, QApplication
 
 
 class LineGraph:
@@ -39,20 +14,6 @@ class LineGraph:
     def __init__(self):
         self.x = []
         self.y = []
-
-        self.wait_dialog = QWidget()
-        self.wait_dialog.setWindowFlags(Qt.FramelessWindowHint)
-        layout = QVBoxLayout()
-        self.wait_dialog.setLayout(layout)
-        self.wait_dialog.setStyleSheet('background-color: #00641e')
-
-        label = QLabel('Creating Graph...')
-        label.setFont(QFont('Helvetica', 16, QFont.Bold))
-        label.setStyleSheet('color: white')
-        layout.addWidget(label)
-
-        self.wait_dialog.show()
-        QApplication.processEvents()
 
     def graph_values_by_date_line(self):
         for item in self.pairs:
@@ -93,7 +54,6 @@ class LineGraph:
 
         figManager = plot.get_current_fig_manager()
         figManager.window.showMaximized()
-        self.wait_dialog.destroy()
         plot.show()
 
     def graph_values_by_date_bar(self):
@@ -136,5 +96,4 @@ class LineGraph:
 
         figManager = plot.get_current_fig_manager()
         figManager.window.showMaximized()
-        self.wait_dialog.destroy()
         plot.show()

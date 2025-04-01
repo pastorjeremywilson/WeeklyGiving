@@ -16,7 +16,7 @@ and detailed report to give to your treasurer.
 # Installation
 
 Currently, Weekly Giving is available for the Microsoft Windows operating
-system only. Download the current Weekly Giving installer (v.1.4.2) and run
+system only. Download the current Weekly Giving installer (v.1.5.0) and run
 it on your computer.
 
 # Using Weekly Giving
@@ -89,7 +89,7 @@ a network drive, you can change that as well.
 
 <div>
     <img src='https://github.com/pastorjeremywilson/public/blob/main/Qt-logo-neon.png?raw=true' height=40px align='right' />
-    Weekly Giving uses <a href="https://www.qt.io/product/framework" target="_blank">Qt</a> (PyQt5) for the user interface.
+    Weekly Giving uses <a href="https://www.qt.io/product/framework" target="_blank">Qt</a> (PyQt6) for the user interface.
 </div>
 <br>
 
