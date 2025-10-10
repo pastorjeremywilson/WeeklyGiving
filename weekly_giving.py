@@ -3,7 +3,7 @@
 
 Copyright 2025 Jeremy G. Wilson
 
-The files contained herein are all part of the Weekly Giving program (v.1.5.1)
+The files contained herein are all part of the Weekly Giving program (v.1.5.2)
 
 Weekly Giving is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License (GNU GPL)
@@ -66,6 +66,7 @@ class WeeklyGiving(QObject):
         Instantiates gui.GUI and calls its create_gui signal. Loads the last record in the database.
         """
         self.gui = GUI(self, self.name)
+        self.gui.load_fonts_signal.emit()
         self.gui.create_gui.emit()
         self.get_last_rec()
 
@@ -803,12 +804,12 @@ class WeeklyGiving(QObject):
         button_layout.addWidget(button_label)
 
         line_button = QRadioButton('Line Graph')
-        line_button.setFont(self.gui.plain_font)
+        line_button.setFont(self.gui.standard_font)
         button_group.addButton(line_button)
         button_layout.addWidget(line_button)
 
         bar_button = QRadioButton('Bar Graph')
-        bar_button.setFont(self.gui.plain_font)
+        bar_button.setFont(self.gui.standard_font)
         button_group.addButton(bar_button)
         button_layout.addWidget(bar_button)
 
