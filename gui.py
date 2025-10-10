@@ -1,3 +1,4 @@
+import io
 import json
 import logging
 import os
@@ -5,23 +6,26 @@ import os
 from PyQt6.QtPdf import QPdfDocument
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from dateutil.parser import parse, ParserError
-from PyQt6.QtCore import QRegularExpression, Qt, pyqtSignal, QSize, QRectF
-from PyQt6.QtGui import QIcon, QFont, QPixmap, QPainter, QPageSize, QPageLayout
+from PyQt6.QtCore import QRegularExpression, Qt, pyqtSignal, QSize, QRectF, QByteArray, QBuffer
+from PyQt6.QtGui import QIcon, QFont, QPixmap, QPainter, QPageSize, QPageLayout, QFontDatabase
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QLineEdit, \
     QTextEdit, QVBoxLayout, QScrollArea, QMessageBox, QTextBrowser, QApplication
 
+from print_dialog import PrintDialog
+
 
 class GUI(QMainWindow):
+    load_fonts_signal = pyqtSignal()
     create_gui = pyqtSignal()
     set_total_labels = pyqtSignal(list)
     changes = None
     main_title_label = None
     all_values = None
+    standard_font = None
+    bold_font = None
+    title_font = None
+    pdf_data = None
 
-    plain_font = QFont('Helvetica', 11)
-    standard_font = plain_font
-    bold_font = QFont('Helvetica', 11, QFont.Weight.Bold)
-    title_font = QFont('Helvetica', 16, QFont.Weight.Bold)
     light_green = '#eaffe8'
     dark_green = '#00641e'
 
@@ -36,8 +40,18 @@ class GUI(QMainWindow):
         self.num_checks = num_checks
 
         super().__init__()
+        self.load_fonts_signal.connect(self.load_fonts)
         self.create_gui.connect(self.init_components)
         self.set_total_labels.connect(self.set_totals)
+
+    def load_fonts(self):
+        application_font_id = QFontDatabase.addApplicationFont('resources/fonts/NimbusSanL-Reg.otf')
+        bold_application_font_id = QFontDatabase.addApplicationFont('resources/fonts/NimbusSanL-Bol.otf')
+        application_font_family = QFontDatabase.applicationFontFamilies(application_font_id)[0]
+        bold_application_font_family = QFontDatabase.applicationFontFamilies(bold_application_font_id)[0]
+        self.standard_font = QFont(application_font_family, 11)
+        self.bold_font = QFont(bold_application_font_family, 11)
+        self.title_font = QFont(bold_application_font_family, 16)
 
     def closeEvent(self, event):
         """
@@ -245,7 +259,7 @@ class GUI(QMainWindow):
         top_layout.addWidget(id_label)
 
         self.id_combo_box = QComboBox()
-        self.id_combo_box.setFont(self.plain_font)
+        self.id_combo_box.setFont(self.standard_font)
         self.id_combo_box.setMinimumWidth(50)
         self.id_combo_box.setStyleSheet('background-color: white; border: 1px solid white;')
         self.id_combo_box.currentIndexChanged.connect(lambda: self.lwg.get_by_id(self.id_combo_box.currentText()))
@@ -257,7 +271,7 @@ class GUI(QMainWindow):
         top_layout.addWidget(date_label)
 
         self.date_combo_box = QComboBox()
-        self.date_combo_box.setFont(self.plain_font)
+        self.date_combo_box.setFont(self.standard_font)
         self.date_combo_box.setMinimumWidth(120)
         self.date_combo_box.setStyleSheet('background-color: white; border: 1px solid white;')
         self.date_combo_box.currentIndexChanged.connect(lambda: self.lwg.get_by_id(self.date_combo_box.currentData()[1]))
@@ -314,7 +328,7 @@ class GUI(QMainWindow):
         info_layout.addWidget(id_label)
 
         self.id_num_label = QLabel()
-        self.id_num_label.setFont(self.plain_font)
+        self.id_num_label.setFont(self.standard_font)
         info_layout.addWidget(self.id_num_label)
 
         date_label = QLabel('Date:')
@@ -322,7 +336,7 @@ class GUI(QMainWindow):
         info_layout.addWidget(date_label)
 
         self.date_line_edit = CustomDateLineEdit()
-        self.date_line_edit.setFont(self.plain_font)
+        self.date_line_edit.setFont(self.standard_font)
         info_layout.addWidget(self.date_line_edit)
 
         prep_label = QLabel('Prepared By:')
@@ -330,7 +344,7 @@ class GUI(QMainWindow):
         info_layout.addWidget(prep_label)
 
         self.prep_line_edit = QLineEdit()
-        self.prep_line_edit.setFont(self.plain_font)
+        self.prep_line_edit.setFont(self.standard_font)
         self.prep_line_edit.setMinimumWidth(300)
         info_layout.addWidget(self.prep_line_edit)
 
@@ -355,56 +369,56 @@ class GUI(QMainWindow):
         bills_layout.addWidget(bills_label, 0, 0)
 
         bills_100_label = QLabel('Hundreds')
-        bills_100_label.setFont(self.plain_font)
+        bills_100_label.setFont(self.standard_font)
         bills_layout.addWidget(bills_100_label, 1, 0)
 
         self.bills_100_line_edit = CustomIntegerLineEdit()
-        self.bills_100_line_edit.setFont(self.plain_font)
+        self.bills_100_line_edit.setFont(self.standard_font)
         self.bills_100_line_edit.textEdited.connect(self.on_change)
         bills_layout.addWidget(self.bills_100_line_edit, 1, 1)
 
         bills_50_label = QLabel('Fifties')
-        bills_50_label.setFont(self.plain_font)
+        bills_50_label.setFont(self.standard_font)
         bills_layout.addWidget(bills_50_label, 2, 0)
 
         self.bills_50_line_edit = CustomIntegerLineEdit()
-        self.bills_50_line_edit.setFont(self.plain_font)
+        self.bills_50_line_edit.setFont(self.standard_font)
         self.bills_50_line_edit.textEdited.connect(self.on_change)
         bills_layout.addWidget(self.bills_50_line_edit, 2, 1)
 
         bills_20_label = QLabel('Twenties')
-        bills_20_label.setFont(self.plain_font)
+        bills_20_label.setFont(self.standard_font)
         bills_layout.addWidget(bills_20_label, 3, 0)
 
         self.bills_20_line_edit = CustomIntegerLineEdit()
-        self.bills_20_line_edit.setFont(self.plain_font)
+        self.bills_20_line_edit.setFont(self.standard_font)
         self.bills_20_line_edit.textEdited.connect(self.on_change)
         bills_layout.addWidget(self.bills_20_line_edit, 3, 1)
 
         bills_10_label = QLabel('Tens')
-        bills_10_label.setFont(self.plain_font)
+        bills_10_label.setFont(self.standard_font)
         bills_layout.addWidget(bills_10_label, 4, 0)
 
         self.bills_10_line_edit = CustomIntegerLineEdit()
-        self.bills_10_line_edit.setFont(self.plain_font)
+        self.bills_10_line_edit.setFont(self.standard_font)
         self.bills_10_line_edit.textEdited.connect(self.on_change)
         bills_layout.addWidget(self.bills_10_line_edit, 4, 1)
 
         bills_5_label = QLabel('Fives')
-        bills_5_label.setFont(self.plain_font)
+        bills_5_label.setFont(self.standard_font)
         bills_layout.addWidget(bills_5_label, 5, 0)
 
         self.bills_5_line_edit = CustomIntegerLineEdit()
-        self.bills_5_line_edit.setFont(self.plain_font)
+        self.bills_5_line_edit.setFont(self.standard_font)
         self.bills_5_line_edit.textEdited.connect(self.on_change)
         bills_layout.addWidget(self.bills_5_line_edit, 5, 1)
 
         bills_1_label = QLabel('Ones')
-        bills_1_label.setFont(self.plain_font)
+        bills_1_label.setFont(self.standard_font)
         bills_layout.addWidget(bills_1_label, 6, 0)
 
         self.bills_1_line_edit = CustomIntegerLineEdit()
-        self.bills_1_line_edit.setFont(self.plain_font)
+        self.bills_1_line_edit.setFont(self.standard_font)
         self.bills_1_line_edit.textEdited.connect(self.on_change)
         bills_layout.addWidget(self.bills_1_line_edit, 6, 1)
 
@@ -427,47 +441,47 @@ class GUI(QMainWindow):
         coins_layout.addWidget(coins_label, 0, 0)
 
         dollar_label = QLabel('Dollars')
-        dollar_label.setFont(self.plain_font)
+        dollar_label.setFont(self.standard_font)
         coins_layout.addWidget(dollar_label, 1, 0)
 
         self.dollar_line_edit = CustomIntegerLineEdit()
-        self.dollar_line_edit.setFont(self.plain_font)
+        self.dollar_line_edit.setFont(self.standard_font)
         self.dollar_line_edit.textEdited.connect(self.on_change)
         coins_layout.addWidget(self.dollar_line_edit, 1, 1)
 
         quarter_label = QLabel('Quarters')
-        quarter_label.setFont(self.plain_font)
+        quarter_label.setFont(self.standard_font)
         coins_layout.addWidget(quarter_label, 2, 0)
 
         self.quarter_line_edit = CustomIntegerLineEdit()
-        self.quarter_line_edit.setFont(self.plain_font)
+        self.quarter_line_edit.setFont(self.standard_font)
         self.quarter_line_edit.textEdited.connect(self.on_change)
         coins_layout.addWidget(self.quarter_line_edit, 2, 1)
 
         dime_label = QLabel('Dimes')
-        dime_label.setFont(self.plain_font)
+        dime_label.setFont(self.standard_font)
         coins_layout.addWidget(dime_label, 3, 0)
 
         self.dime_line_edit = CustomIntegerLineEdit()
-        self.dime_line_edit.setFont(self.plain_font)
+        self.dime_line_edit.setFont(self.standard_font)
         self.dime_line_edit.textEdited.connect(self.on_change)
         coins_layout.addWidget(self.dime_line_edit, 3, 1)
 
         nickel_label = QLabel('Nickels')
-        nickel_label.setFont(self.plain_font)
+        nickel_label.setFont(self.standard_font)
         coins_layout.addWidget(nickel_label, 4, 0)
 
         self.nickel_line_edit = CustomIntegerLineEdit()
-        self.nickel_line_edit.setFont(self.plain_font)
+        self.nickel_line_edit.setFont(self.standard_font)
         self.nickel_line_edit.textEdited.connect(self.on_change)
         coins_layout.addWidget(self.nickel_line_edit, 4, 1)
 
         penny_label = QLabel('Pennies')
-        penny_label.setFont(self.plain_font)
+        penny_label.setFont(self.standard_font)
         coins_layout.addWidget(penny_label, 5, 0)
 
         self.penny_line_edit = CustomIntegerLineEdit()
-        self.penny_line_edit.setFont(self.plain_font)
+        self.penny_line_edit.setFont(self.standard_font)
         self.penny_line_edit.textEdited.connect(self.on_change)
         coins_layout.addWidget(self.penny_line_edit, 5, 1)
 
@@ -507,12 +521,12 @@ class GUI(QMainWindow):
 
             label = QLabel(self.lwg.column_pairs[i][1])
             label.setObjectName('special_label' + str(i))
-            label.setFont(self.plain_font)
+            label.setFont(self.standard_font)
             special_line_layout.addWidget(label)
             special_line_layout.addStretch()
 
             line_edit = CustomCurrencyLineEdit()
-            line_edit.setFont(self.plain_font)
+            line_edit.setFont(self.standard_font)
             line_edit.setObjectName('special_edit' + str(i))
             line_edit.setText('0.00')
             line_edit.textEdited.connect(self.on_change)
@@ -540,11 +554,11 @@ class GUI(QMainWindow):
 
         for i in range(0, self.lwg.max_checks):
             label = QLabel('Check ' + str(i + 1))
-            label.setFont(self.plain_font)
+            label.setFont(self.standard_font)
             checks_layout.addWidget(label, i + 1, 0)
             line_edit = CustomCurrencyLineEdit()
             line_edit.setObjectName('checks_' + str(i))
-            line_edit.setFont(self.plain_font)
+            line_edit.setFont(self.standard_font)
             line_edit.textEdited.connect(self.on_change)
             checks_layout.addWidget(line_edit, i + 1, 1)
 
@@ -571,7 +585,7 @@ class GUI(QMainWindow):
         notes_layout.addWidget(notes_label)
 
         self.notes_edit = QTextEdit()
-        self.notes_edit.setFont(self.plain_font)
+        self.notes_edit.setFont(self.standard_font)
         self.notes_edit.setStyleSheet('background-color: white')
         self.notes_edit.textChanged.connect(self.on_change)
         notes_layout.addWidget(self.notes_edit)
@@ -603,7 +617,7 @@ class GUI(QMainWindow):
         totals_layout.addWidget(num_checks_label, 1, 0)
 
         self.num_checks_total_label = QLabel()
-        self.num_checks_total_label.setFont(self.plain_font)
+        self.num_checks_total_label.setFont(self.standard_font)
         self.num_checks_total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(self.num_checks_total_label, 1, 1)
 
@@ -613,7 +627,7 @@ class GUI(QMainWindow):
         totals_layout.addWidget(designated_label, 2, 0)
 
         self.designated_total_label = QLabel()
-        self.designated_total_label.setFont(self.plain_font)
+        self.designated_total_label.setFont(self.standard_font)
         self.designated_total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(self.designated_total_label, 2, 1)
 
@@ -623,7 +637,7 @@ class GUI(QMainWindow):
         totals_layout.addWidget(bills_label, 4, 0)
 
         self.bills_total_label = QLabel()
-        self.bills_total_label.setFont(self.plain_font)
+        self.bills_total_label.setFont(self.standard_font)
         self.bills_total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(self.bills_total_label, 4, 1)
 
@@ -633,7 +647,7 @@ class GUI(QMainWindow):
         totals_layout.addWidget(coins_label, 5, 0)
 
         self.coins_total_label = QLabel()
-        self.coins_total_label.setFont(self.plain_font)
+        self.coins_total_label.setFont(self.standard_font)
         self.coins_total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(self.coins_total_label, 5, 1)
 
@@ -643,7 +657,7 @@ class GUI(QMainWindow):
         totals_layout.addWidget(checks_label, 6, 0)
 
         self.checks_total_label = QLabel()
-        self.checks_total_label.setFont(self.plain_font)
+        self.checks_total_label.setFont(self.standard_font)
         self.checks_total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         totals_layout.addWidget(self.checks_total_label, 6, 1)
 
@@ -893,6 +907,10 @@ class GUI(QMainWindow):
 
         from reportlab.pdfgen import canvas
         from reportlab.lib.pagesizes import letter
+        from reportlab.pdfbase.ttfonts import TTFont
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.lib import fonts
+
         # letter size = 612.0 x 792.0
         # create variables based on letter-sized canvas
         marginH = 100
@@ -903,31 +921,40 @@ class GUI(QMainWindow):
         lineEnd = 612 - marginH
         lineHeight = 16
 
+        try:
+            pdfmetrics.registerFont(TTFont('NimbusSans', 'resources/fonts/NimbusSanL-Reg.ttf'))
+            pdfmetrics.registerFont(TTFont('NimbusSansBold', 'resources/fonts/NimbusSanL-Bol.ttf'))
+            pdfmetrics.registerFont(TTFont('NimbusSansBoldItalic', 'resources/fonts/NimbusSanL-BolIta.ttf'))
+        except Exception as ex:
+            print(str(ex))
+
         appData = os.getenv('APPDATA')
         print_file_loc = appData + '/WeeklyGiving/print.pdf'
         self.lwg.write_log('print_file_loc: ' + print_file_loc)
 
         currentLine = firstLine
-        canvas = canvas.Canvas(print_file_loc, pagesize=letter)
+
+        pdf_buffer = io.BytesIO()
+        canvas = canvas.Canvas(pdf_buffer, pagesize=letter)
         canvas.setLineWidth(1.0)
-        canvas.setFont('Helvetica-Bold', 16)
+        canvas.setFont('NimbusSansBold', 16)
         canvas.drawString(lineStart, currentLine, self.lwg.name + ' Weekly Giving Report')
         currentLine -= 5
         canvas.line(lineStart, currentLine, lineEnd, currentLine)
 
         currentLine -= lineHeight
-        canvas.setFont('Helvetica-Bold', 11)
+        canvas.setFont('NimbusSansBold', 11)
         canvas.drawString(lineStart, currentLine, 'Date:')
-        canvas.setFont('Helvetica', 11)
+        canvas.setFont('NimbusSans', 11)
         canvas.drawString(lineStart + 35, currentLine, self.date_line_edit.text())
-        canvas.setFont('Helvetica-Bold', 11)
+        canvas.setFont('NimbusSansBold', 11)
         canvas.drawString(lineStart + 120, currentLine, 'Prepared By:')
-        canvas.setFont('Helvetica', 11)
+        canvas.setFont('NimbusSans', 11)
         canvas.drawString(lineStart + 195, currentLine, self.prep_line_edit.text())
         canvas.drawRightString(lineEnd, currentLine, 'ID: ' + self.id_num_label.text())
 
         currentLine -= lineHeight
-        canvas.setFont('Helvetica-Bold', 11)
+        canvas.setFont('NimbusSansBold', 11)
         canvas.drawString(lineStart, currentLine, 'Signature:')
         currentLine -= lineHeight
         canvas.rect(lineStart, currentLine - 20, 300, 30)
@@ -957,7 +984,7 @@ class GUI(QMainWindow):
         ]
 
         column1 = 180
-        canvas.setFont('Helvetica', 11)
+        canvas.setFont('NimbusSans', 11)
         currentLine = rememberCurrentLine
         for num in billsArray:
             canvas.drawRightString(column1, currentLine, num)
@@ -966,7 +993,7 @@ class GUI(QMainWindow):
         currentLine -= lineHeight
         rememberCurrentLine = currentLine
 
-        canvas.setFont('Helvetica-Bold', 11)
+        canvas.setFont('NimbusSansBold', 11)
         canvas.drawString(lineStart, currentLine, '$1 Coins')
         currentLine -= lineHeight
         canvas.drawString(lineStart, currentLine, 'Quarters')
@@ -986,14 +1013,14 @@ class GUI(QMainWindow):
             self.penny_line_edit.text()
         ]
 
-        canvas.setFont('Helvetica', 11)
+        canvas.setFont('NimbusSans', 11)
         currentLine = rememberCurrentLine
         for num in coinsArray:
             canvas.drawRightString(column1, currentLine, num)
             currentLine -= lineHeight
 
         column2 = 210
-        canvas.setFont('Helvetica-Bold', 11)
+        canvas.setFont('NimbusSansBold', 11)
         currentLine = topLineofEntries
         canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec1'])
         currentLine -= lineHeight
@@ -1014,7 +1041,7 @@ class GUI(QMainWindow):
         for widget in self.findChildren(QLineEdit, QRegularExpression('special_edit*')):
             specialArray.append(widget.text())
         column3 = 400
-        canvas.setFont('Helvetica', 11)
+        canvas.setFont('NimbusSans', 11)
         currentLine = topLineofEntries
         for num in specialArray:
             if len(num) > 0:
@@ -1024,7 +1051,7 @@ class GUI(QMainWindow):
                     currentLine -= lineHeight
 
         column4 = 440
-        canvas.setFont('Helvetica-Bold', 11)
+        canvas.setFont('NimbusSansBold', 11)
         currentLine = topLineofEntries + lineHeight
         canvas.drawString(column4, currentLine, 'Checks:')
         currentLine = topLineofEntries
@@ -1037,7 +1064,7 @@ class GUI(QMainWindow):
             checksArray.append(widget.text())
 
         column5 = lineEnd  # prev 500
-        canvas.setFont('Helvetica', 11)
+        canvas.setFont('NimbusSans', 11)
         currentLine = topLineofEntries
         for num in checksArray:
             if len(num) > 0:
@@ -1047,7 +1074,7 @@ class GUI(QMainWindow):
                     currentLine -= lineHeight
 
         currentLine = 300
-        canvas.setFont('Helvetica-Bold', 12)
+        canvas.setFont('NimbusSansBold', 12)
         canvas.drawString(lineStart + 20, currentLine, 'Total Designated Offerings:')
         currentLine -= lineHeight * 2
         canvas.drawString(lineStart + 20, currentLine, 'Total Bills:')
@@ -1056,15 +1083,15 @@ class GUI(QMainWindow):
         currentLine -= lineHeight
         canvas.drawString(lineStart + 20, currentLine, 'Total Checks:')
         currentLine -= lineHeight * 2
-        canvas.setFont('Helvetica-BoldOblique', 14)
+        canvas.setFont('NimbusSansBoldItalic', 14)
         canvas.drawString(lineStart + 20, currentLine, 'Total Deposit:')
         currentLine -= lineHeight * 2
-        canvas.setFont('Helvetica-Bold', 12)
+        canvas.setFont('NimbusSansBold', 12)
         canvas.drawString(lineStart + 20, currentLine, 'Number of Checks:')
 
         currentLine = 300
         column2 = 370
-        canvas.setFont('Helvetica', 12)
+        canvas.setFont('NimbusSans', 12)
         canvas.drawRightString(column2, currentLine, self.designated_total_label.text())
         currentLine -= lineHeight * 2
         canvas.drawRightString(column2, currentLine, self.bills_total_label.text())
@@ -1073,10 +1100,10 @@ class GUI(QMainWindow):
         currentLine -= lineHeight
         canvas.drawRightString(column2, currentLine, self.checks_total_label.text())
         currentLine -= lineHeight * 2
-        canvas.setFont('Helvetica-BoldOblique', 14)
+        canvas.setFont('NimbusSansBoldItalic', 14)
         canvas.drawRightString(column2, currentLine, self.total_total_label.text())
         currentLine -= lineHeight * 2
-        canvas.setFont('Helvetica', 12)
+        canvas.setFont('NimbusSans', 12)
         canvas.drawRightString(column2, currentLine, self.num_checks_total_label.text())
 
         currentLine += lineHeight * 2
@@ -1091,15 +1118,22 @@ class GUI(QMainWindow):
         canvas.setLineWidth(1.0)
         canvas.rect(lineStart, currentLine - 60, lineEnd - lineStart, 55)
 
-        try:
-            canvas.save()
+        canvas.save()
+        self.pdf_data = {'byte_array': None, 'buffer': None, 'pdf_document': None}
+        self.pdf_data['byte_array'] = QByteArray(pdf_buffer.getvalue())
+        pdf_buffer.close()
 
-            return print_file_loc
-
-        except Exception as ex:
-            self.lwg.write_log('*Error during printing: ' + str(ex))
+        self.pdf_data['buffer'] = QBuffer(self.pdf_data['byte_array'])
+        self.pdf_data['buffer'].setData(self.pdf_data['byte_array'])
+        self.pdf_data['buffer'].open(QBuffer.OpenModeFlag.ReadOnly)
+        self.pdf_data['pdf_document'] = QPdfDocument(self)
+        self.pdf_data['pdf_document'].load(self.pdf_data['buffer'])
 
     def print_pdf(self):
+        self.make_pdf()
+        pd = PrintDialog(self.pdf_data['pdf_document'], self, landscape=False)
+        pd.exec()
+        return
         popup = Popup(self, 'Preparing Printout...')
         popup.show()
         QApplication.processEvents()
@@ -1187,7 +1221,7 @@ class GUI(QMainWindow):
         help_widget.setLayout(help_layout)
 
         title_label = QLabel('Weekly Giving Help')
-        title_label.setFont(QFont("Helvetica", 22, QFont.Weight.Bold))
+        title_label.setFont(self.title_font)
         help_layout.addWidget(title_label)
 
         separator0 = QWidget()
@@ -1207,7 +1241,7 @@ class GUI(QMainWindow):
 
         toolbar_text_label = QLabel()
         toolbar_text_label.setWordWrap(True)
-        toolbar_text_label.setFont(self.plain_font)
+        toolbar_text_label.setFont(self.standard_font)
         toolbar_text_label.setText(
             '<p>'
             'At the top of the screen you will see a toolbar. On the left of the bar are buttons you can use to navigate the records you create:'
@@ -1252,7 +1286,7 @@ class GUI(QMainWindow):
             '<strong>print</strong> the current record, and <strong>exit</strong> the program.'
         )
         file_text_label.setWordWrap(True)
-        file_text_label.setFont(self.plain_font)
+        file_text_label.setFont(self.standard_font)
         help_layout.addWidget(file_text_label)
 
         separator2 = QWidget()
@@ -1274,7 +1308,7 @@ class GUI(QMainWindow):
             'or <strong>view the log file</strong>, which may contain information about program crashes or undesired behavior.'
         )
         tools_text_label.setWordWrap(True)
-        tools_text_label.setFont(self.plain_font)
+        tools_text_label.setFont(self.standard_font)
         help_layout.addWidget(tools_text_label)
 
         separator3 = QWidget()
@@ -1301,7 +1335,7 @@ class GUI(QMainWindow):
             'that number being fixed at seven.'
         )
         settings_text_label.setWordWrap(True)
-        settings_text_label.setFont(self.plain_font)
+        settings_text_label.setFont(self.standard_font)
         help_layout.addWidget(settings_text_label)
 
         scroll_area = QScrollArea()
@@ -1337,7 +1371,7 @@ class GUI(QMainWindow):
             'and technological distinctiveness, email <a href="mailto:pastorjeremywilson@gmail.com">'
             'pastorjeremywilson@gmail.com</a>'
         )
-        about_text.setFont(self.plain_font)
+        about_text.setFont(self.standard_font)
         about_text.setMinimumSize(600, 400)
         about_layout.addWidget(about_text)
         self.about_widget.show()
