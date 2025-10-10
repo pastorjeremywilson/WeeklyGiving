@@ -4,10 +4,9 @@ import logging
 import os
 
 from PyQt6.QtPdf import QPdfDocument
-from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from dateutil.parser import parse, ParserError
-from PyQt6.QtCore import QRegularExpression, Qt, pyqtSignal, QSize, QRectF, QByteArray, QBuffer
-from PyQt6.QtGui import QIcon, QFont, QPixmap, QPainter, QPageSize, QPageLayout, QFontDatabase
+from PyQt6.QtCore import QRegularExpression, Qt, pyqtSignal, QSize, QByteArray, QBuffer
+from PyQt6.QtGui import QIcon, QFont, QPixmap, QFontDatabase
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QLineEdit, \
     QTextEdit, QVBoxLayout, QScrollArea, QMessageBox, QTextBrowser, QApplication
 
@@ -909,7 +908,6 @@ class GUI(QMainWindow):
         from reportlab.lib.pagesizes import letter
         from reportlab.pdfbase.ttfonts import TTFont
         from reportlab.pdfbase import pdfmetrics
-        from reportlab.lib import fonts
 
         # letter size = 612.0 x 792.0
         # create variables based on letter-sized canvas
@@ -1133,59 +1131,6 @@ class GUI(QMainWindow):
         self.make_pdf()
         pd = PrintDialog(self.pdf_data['pdf_document'], self, landscape=False)
         pd.exec()
-        return
-        popup = Popup(self, 'Preparing Printout...')
-        popup.show()
-        QApplication.processEvents()
-
-        pdf_doc = QPdfDocument(self)
-        pdf_doc.load(self.make_pdf())
-
-        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
-        printer.setDocName('Weekly Giving Report')
-        printer.setPageSize(QPageSize(QPageSize.PageSizeId.Letter))
-        printer.setPageOrientation(QPageLayout.Orientation.Portrait)
-
-        print_dialog = QPrintDialog(printer)
-        painter = QPainter(print_dialog)
-        painter.drawImage(QRectF(0, 0, 1100, 850), pdf_doc.render(0, QSize(1100, 850)))
-
-        popup.deleteLater()
-        result = print_dialog.exec()
-
-        if result == QPrintDialog.DialogCode.Accepted:
-            self.do_print(pdf_doc, printer)
-
-    def do_print(self, pdf_doc, printer):
-        range_list = printer.pageRanges().toRangeList()
-        pages_to_print = []
-        if len(range_list) > 0:
-            for i in range(len(range_list)):
-                for j in range(range_list[i].from_, range_list[i].to + 1):
-                    pages_to_print.append(j - 1)
-        else:
-            for i in range(pdf_doc.pageCount()):
-                pages_to_print.append(i)
-
-        page_rect_inch = printer.pageRect(QPrinter.Unit.Inch)
-        dpi_x = printer.physicalDpiX()
-        dpi_y = printer.physicalDpiY()
-        rect = QRectF(
-            0,
-            0,
-            page_rect_inch.width() * dpi_x,
-            page_rect_inch.height() * dpi_y
-        )
-        painter = QPainter(printer)
-        painter.begin(printer)
-        do_new_page = False
-        for page in pages_to_print:
-            if do_new_page:
-                printer.newPage()
-            render = pdf_doc.render(page, QSize(int(rect.width()), int(rect.height())))
-            painter.drawImage(rect, render)
-            do_new_page = True
-        painter.end()
 
     def refresh_combo_boxes(self):
         """
