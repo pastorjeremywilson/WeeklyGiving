@@ -37,7 +37,7 @@ from PyQt6.QtWidgets import QApplication, QFileDialog, QDialog, QGridLayout, QCa
 from gui import GUI
 
 
-class WeeklyGiving(QObject):
+class Main(QObject):
     start_gui = pyqtSignal()
     app = None
     DATABASE = None
@@ -49,11 +49,13 @@ class WeeklyGiving(QObject):
     column_pairs = None
     current_id_index = None
     thread_pool = None
+    file_locations = {}
 
     def __init__(self):
         super().__init__()
 
-        os.chdir(os.path.dirname(__file__))
+        self.file_locations['program_dir'] = os.path.dirname(__file__)
+        os.chdir(self.file_locations['program_dir'])
 
         self.start_gui.connect(self.init_gui)
 
@@ -76,7 +78,7 @@ class WeeklyGiving(QObject):
         """
         try:
             self.write_log('Retreiving ID list')
-            conn = sqlite3.connect(self.DATABASE)
+            conn = sqlite3.connect(self.file_locations['database_file'])
             cur = conn.cursor()
             ex = cur.execute('SELECT ID FROM ' + self.table_name)
             result = ex.fetchall()
@@ -94,7 +96,7 @@ class WeeklyGiving(QObject):
         Stores all dates from the Database into a list then returns the list
         """
         self.write_log('Retreiving Date List')
-        conn = sqlite3.connect(self.DATABASE)
+        conn = sqlite3.connect(self.file_locations['database_file'])
         cur = conn.cursor()
         result = cur.execute('SELECT Date, ID FROM ' + self.table_name).fetchall()
         dates = []
@@ -136,7 +138,7 @@ class WeeklyGiving(QObject):
             self.write_log('Retrieving record by ID: ' + str(id))
 
             try:
-                con = sqlite3.connect(self.DATABASE)
+                con = sqlite3.connect(self.file_locations['database_file'])
                 cur = con.cursor()
                 sql = 'SELECT * FROM ' + self.table_name + ' WHERE id = ' + str(self.ids[self.current_id_index])
                 ex = cur.execute(sql)
@@ -231,7 +233,7 @@ class WeeklyGiving(QObject):
             values = values[0:len(values) - 1]
 
             try:
-                conn = sqlite3.connect(self.DATABASE)
+                conn = sqlite3.connect(self.file_locations['database_file'])
                 cur = conn.cursor()
                 sql = 'INSERT INTO ' + self.table_name + ' values (' + values + ')'
                 self.write_log('Insert command from WeeklyGiving.create_new_rec: ' + sql)
@@ -249,7 +251,7 @@ class WeeklyGiving(QObject):
                 self.gui.changes = False
                 self.gui.save_button.setEnabled(False)
             except (sqlite3.OperationalError, sqlite3.DatabaseError, sqlite3.NotSupportedError) as err:
-                self.write_log('*Critical error from WeeklyGiving.get_by_id: ' + str(err))
+                self.write_log('*Critical error from WeeklyGiving.create_new_rec: ' + str(err))
 
     def del_rec(self):
         """
@@ -264,7 +266,7 @@ class WeeklyGiving(QObject):
 
         if response == QMessageBox.StandardButton.Yes:
             try:
-                conn = sqlite3.connect(self.DATABASE)
+                conn = sqlite3.connect(self.file_locations['database_file'])
                 cur = conn.cursor()
                 sql = 'DELETE FROM ' + self.table_name + ' WHERE ID = ' + self.gui.id_num_label.text()
                 cur.execute(sql)
@@ -335,7 +337,7 @@ class WeeklyGiving(QObject):
         self.write_log('WeeklyGiving.save_rec sql: ' + sql)
 
         try:
-            conn = sqlite3.connect(self.DATABASE)
+            conn = sqlite3.connect(self.file_locations['database_file'])
             cur = conn.cursor()
             cur.execute(sql)
             conn.commit()
@@ -560,7 +562,7 @@ class WeeklyGiving(QObject):
                 with open(self.config_file_loc, 'w') as file:
                     file.write(json.dumps(config_json))
 
-                conn = sqlite3.connect(self.DATABASE)
+                conn = sqlite3.connect(self.file_locations['database_file'])
                 cur = conn.cursor()
                 result = cur.execute('SELECT * FROM ' + self.table_name + ' WHERE id=' + str(self.ids[0]))
                 column_names = [description[0] for description in result.description]
@@ -647,8 +649,8 @@ class WeeklyGiving(QObject):
             self.write_log('New database file location: ' + file_loc)
 
             try:
-                shutil.copy(self.DATABASE, file_loc)
-                self.DATABASE = file_loc
+                shutil.copy(self.file_locations['database_file'], file_loc)
+                self.file_locations['database_file'] = file_loc
 
                 with open(self.config_file_loc, 'r') as file:
                     config_json = json.loads(file.read())
@@ -666,7 +668,7 @@ class WeeklyGiving(QObject):
         Writes a backup file to the user's database directory, appending the current date and time to the file name.
         Removes oldest file if there are already 5 or more backup files.
         """
-        pathArray = self.DATABASE.split('/')
+        pathArray = self.file_locations['database_file'].split('/')
         databaseDir = ''
         for i in range(0, len(pathArray) - 1):
             databaseDir += pathArray[i] + '/'
@@ -687,7 +689,7 @@ class WeeklyGiving(QObject):
             self.write_log('New Backup File: ' + newBackupFile)
 
             import shutil
-            shutil.copy(self.DATABASE, newBackupFile)
+            shutil.copy(self.file_locations['database_file'], newBackupFile)
 
         except OSError as err:
             self.write_log('Error from WeeklyGiving.do_backup: ' + str(err))
@@ -714,8 +716,8 @@ class WeeklyGiving(QObject):
                     self.gui,
                     'Error',
                     'A critical error has occurred. Try again, or view the log at\n'
-                        + os.getenv("APPDATA")
-                        + 'log.txt for more information.\n\n'
+                        + self.file_locations['log_file']
+                        + '/log.txt for more information.\n\n'
                         + formatted_text,
                     QMessageBox.StandardButton.Ok
                 )
@@ -731,13 +733,13 @@ class WeeklyGiving(QObject):
                     self.gui,
                     'Error',
                     'An error has occurred:\n\n' + formatted_text + '\n\nTry again, or view the log at\n'
-                        + os.getenv("APPDATA")
-                        + 'log.txt for more information.\n\n'
+                        + self.file_locations['log_file']
+                        + '/log.txt for more information.\n\n'
                         + formatted_text,
                     QMessageBox.StandardButton.Ok
                 )
-            logFileLoc = os.getenv('APPDATA') + '/WeeklyGiving/log.txt'
-            logfile = open(logFileLoc, 'a')
+
+            logfile = open(self.file_locations['log_file'], 'a')
             logfile.write(str(datetime.today()) + ': ' + formatted_text + '\n')
             logfile.close()
         except Exception:
@@ -748,10 +750,10 @@ class WeeklyGiving(QObject):
         Method to enable viewing of the log file from within the program
         """
         try:
-            with open(os.getenv('APPDATA') + '/WeeklyGiving/log.txt', 'r') as file:
+            with open(self.file_locations['log_file'], 'r') as file:
                 log_text = file.read()
         except OSError as err:
-            self.write_log('*Critical error from WeeklyGiving.change_designations: ' + str(err))
+            self.write_log('*Critical error from WeeklyGiving.view_log: ' + str(err))
 
         self.log_dialog = QWidget()
         self.log_dialog.setMinimumSize(600, 600)
@@ -840,7 +842,7 @@ class WeeklyGiving(QObject):
 
             start = start_date.selectedDate()
             end = end_date.selectedDate()
-            connection = sqlite3.connect(self.DATABASE)
+            connection = sqlite3.connect(self.file_locations['database_file'])
             cursor = connection.cursor()
             sql = 'SELECT Date, Total_Deposit from ' + self.table_name
             result = cursor.execute(sql).fetchall()
@@ -871,49 +873,59 @@ class Startup(QRunnable):
     Class impolementing QRunnable to perform all of the startup tasks of the program, making use of loading_box's
     change_text signal to provide visual updates on the progress. Goes pretty quick. May not be necessary.
     """
-    def __init__(self, wg):
+    def __init__(self, main):
         super().__init__()
-        self.wg = wg
-        self.loading_box = LoadingBox(wg)
+        self.main = main
+        self.loading_box = LoadingBox(main)
 
     def run(self):
         try:
             # Check to see if config file exists in user's APPDATA folder
             self.loading_box.change_text.emit('Getting Directories')
-            self.wg.appData = os.getenv('APPDATA')
+            if 'linux' in sys.platform:
+                self.main.file_locations['app_data_dir'] = os.path.expanduser('~')
+                self.main.file_locations['program_data_dir'] = self.main.file_locations['app_data_dir'] + '/.WeeklyGiving'
+            else:
+                self.main.file_locations['app_data_dir'] = os.path.expanduser('~/AppData/Roaming')
+                self.main.file_locations['program_data_dir'] = self.main.file_locations['app_data_dir'] + '/WeeklyGiving'
+
             new_dir = False
-            if not exists(self.wg.appData + '/WeeklyGiving'):
+
+            if not exists(self.main.file_locations['program_data_dir']):
                 new_dir = True
-                os.mkdir(self.wg.appData + '/WeeklyGiving')
-                with open(self.wg.appData + '/WeeklyGiving/log.txt', 'w') as file:
+                os.mkdir(self.main.file_locations['program_data_dir'])
+
+            self.main.file_locations['log_file'] = self.main.file_locations['program_data_dir'] + '/log.txt'
+            if not exists(self.main.file_locations['log_file']):
+                with open(self.main.file_locations['log_file'], 'w') as file:
                     pass
 
             if new_dir:
-                self.wg.write_log('Creating %APPDATA%/WeeklyGiving folder and log.txt')
+                self.main.write_log('Creating %APPDATA%/WeeklyGiving folder and log.txt')
 
-            self.wg.write_log('APPDATA location: ' + self.wg.appData)
+            self.main.write_log('APPDATA location: ' + self.main.file_locations['program_data_dir'])
 
             self.loading_box.change_text.emit('Checking Files')
-            self.wg.config_file_loc = self.wg.appData + '/WeeklyGiving/config.json'
-            self.wg.write_log('Config file location: ' + self.wg.config_file_loc)
+            self.main.file_locations['config_file'] = self.main.file_locations['program_data_dir'] + '/config.json'
+            self.main.write_log('Config file location: ' + self.main.file_locations['config_file'])
 
-            if not exists(self.wg.config_file_loc): # Copy default config file if not found
-                self.wg.write_log('Copying config file to APPDATA folder')
-                shutil.copy('resources/default_config.json', self.wg.config_file_loc)
+            if not exists(self.main.file_locations['config_file']): # Copy default config file if not found
+                self.main.write_log('Copying config file to APPDATA folder')
+                shutil.copy('resources/default_config.json', self.main.file_locations['config_file'])
 
             # read the config file as json
-            self.wg.write_log('Opening config file from ' + self.wg.config_file_loc)
-            with open(self.wg.config_file_loc, 'r') as file:
-                self.wg.config_json = json.loads(file.read())
-            self.wg.file_loc = self.wg.config_json['fileLoc']
+            self.main.write_log('Opening config file from ' + self.main.file_locations['config_file'])
+            with open(self.main.file_locations['config_file'], 'r') as file:
+                self.main.config_json = json.loads(file.read())
+            self.main.file_locations['database_file'] = self.main.config_json['fileLoc']
 
-            self.wg.spec_designations = self.wg.config_json['specialDesignations']
-            self.wg.max_checks = self.wg.config_json['maxChecks']
-            self.wg.name = self.wg.config_json['name']
-            if 'includeSpecial' in self.wg.config_json.keys():
-                self.wg.include_special_in_total = self.wg.config_json['includeSpecial']
+            self.main.spec_designations = self.main.config_json['specialDesignations']
+            self.main.max_checks = self.main.config_json['maxChecks']
+            self.main.name = self.main.config_json['name']
+            if 'includeSpecial' in self.main.config_json.keys():
+                self.main.include_special_in_total = self.main.config_json['includeSpecial']
             else:
-                self.wg.include_special_in_total = True
+                self.main.include_special_in_total = True
 
             self.loading_box.change_text.emit('Checking Database')
             self.loading_box.check_database_signal.emit()
@@ -923,10 +935,10 @@ class Startup(QRunnable):
             self.loading_box.change_text.emit('Starting GUI')
 
             self.loading_box.end.emit()
-            self.wg.start_gui.emit()
+            self.main.start_gui.emit()
 
         except Exception as ex:
-            self.wg.write_log('*Critical error from Startup.run: ' + str(ex))
+            self.main.write_log('*Critical error from Startup.run: ' + str(ex))
 
 
 class LoadingBox(QDialog):
@@ -940,10 +952,10 @@ class LoadingBox(QDialog):
 
     def __init__(self, wg):
         """
-        :param WeeklyGiving wg: The WeeklyGiving instance
+        :param Main wg: The WeeklyGiving instance
         """
         super().__init__()
-        self.wg = wg
+        self.main = wg
         self.change_text.connect(self.change_label_text)
         self.check_database_signal.connect(self.check_database)
         self.end.connect(lambda: self.done(0))
@@ -979,10 +991,9 @@ class LoadingBox(QDialog):
         Method to check that the database exists. Gives the user options to create a new database or to find an old
         one if it doesn't exist.
         """
-        if exists(self.wg.file_loc):
-            self.wg.DATABASE = self.wg.file_loc
-            self.wg.table_name = 'weekly_giving'
-            self.wg.write_log('Database located at ' + self.wg.DATABASE)
+        if exists(self.main.file_locations['database_file']):
+            self.main.table_name = 'weekly_giving'
+            self.main.write_log('Database located at ' + self.main.file_locations['database_file'])
         else:
             try:
                 response = QMessageBox.question(
@@ -990,8 +1001,7 @@ class LoadingBox(QDialog):
                     'File Not Found',
                     'Database file not found. Would you like to locate it? (Choose "No" to create a new database)',
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel)
-                print(str(response))
-                self.wg.write_log('Response to locating database file: ' + str(response))
+                self.main.write_log('Response to locating database file: ' + str(response))
             except Exception:
                 logging.exception('')
 
@@ -1001,24 +1011,26 @@ class LoadingBox(QDialog):
                 db_file = file_dialog.getOpenFileName(
                     None,
                     'Open Database File',
-                    self.wg.appData,
+                    self.file_locations['program_data_dir'],
                     'SQLite .db File (*.db)'
                 )
 
-                self.wg.DATABASE = db_file[0]
-                self.wg.table_name = 'weekly_giving'
-                self.wg.config_json['fileLoc'] = db_file[0]
-                with open(self.wg.config_file_loc, 'w') as file:
-                    file.write(json.dumps(self.wg.config_json))
+                self.main.file_locations['database_file'] = db_file[0]
+                self.main.table_name = 'weekly_giving'
+                self.main.config_json['fileLoc'] = db_file[0]
+                with open(self.main.config_file_loc, 'w') as file:
+                    file.write(json.dumps(self.main.config_json))
             elif response == QMessageBox.StandardButton.No:
                 try:
                     print('setting db file loc and table name')
-                    self.wg.DATABASE = self.wg.appData + '/WeeklyGiving/weekly_giving.db'
-                    self.wg.table_name = 'weekly_giving'
+                    self.main.file_locations['database_file'] = (
+                            self.main.file_locations['program_data_dir'] + 'weekly_giving.db'
+                    )
+                    self.main.table_name = 'weekly_giving'
                     print('dumping config_json to file')
-                    self.wg.config_json['fileLoc'] = self.wg.DATABASE
-                    with open(self.wg.config_file_loc, 'w') as file:
-                        file.write(json.dumps(self.wg.config_json))
+                    self.main.config_json['fileLoc'] = self.main.file_locations['database_file']
+                    with open(self.main.config_file_loc, 'w') as file:
+                        file.write(json.dumps(self.main.config_json))
 
                     print('creating sql')
                     sql = '''
@@ -1086,7 +1098,7 @@ class LoadingBox(QDialog):
                     '''
 
                     print('executing sql')
-                    conn = sqlite3.connect(self.wg.DATABASE)
+                    conn = sqlite3.connect(self.main.file_locations['database_file'])
                     cursor = conn.cursor()
                     cursor.execute(sql)
                     conn.commit()
@@ -1106,22 +1118,22 @@ class LoadingBox(QDialog):
                     values = values[0:len(values) - 1]
 
                     try:
-                        conn = sqlite3.connect(self.wg.DATABASE)
+                        conn = sqlite3.connect(self.main.file_locations['database_file'])
                         cur = conn.cursor()
-                        sql = 'INSERT INTO ' + self.wg.table_name + ' values (' + values + ')'
+                        sql = 'INSERT INTO ' + self.main.table_name + ' values (' + values + ')'
                         cur.execute(sql)
                         conn.commit()
                         conn.close()
                     except (sqlite3.OperationalError, sqlite3.DatabaseError, sqlite3.NotSupportedError) as err:
-                        self.wg.write_log('*Critical error from GUI.check_database: ' + str(err))
+                        self.main.write_log('*Critical error from GUI.check_database: ' + str(err))
                 except TypeError:
-                    self.wg.write_log('Database file not found. Exiting.')
+                    self.main.write_log('Database file not found. Exiting.')
             else:
                 quit()
 
-        self.wg.column_pairs = self.wg.get_column_pairs(self.wg.spec_designations)
+        self.main.column_pairs = self.main.get_column_pairs(self.main.spec_designations)
 
-        self.wg.ids = self.wg.get_ids()
+        self.main.ids = self.main.get_ids()
         self.checking = False
 
 
@@ -1184,5 +1196,5 @@ class Recalc(QRunnable):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    WeeklyGiving()
+    Main()
     app.exec()
