@@ -1011,14 +1011,14 @@ class LoadingBox(QDialog):
                 db_file = file_dialog.getOpenFileName(
                     None,
                     'Open Database File',
-                    self.file_locations['program_data_dir'],
+                    self.main.file_locations['program_data_dir'],
                     'SQLite .db File (*.db)'
                 )
 
                 self.main.file_locations['database_file'] = db_file[0]
                 self.main.table_name = 'weekly_giving'
                 self.main.config_json['fileLoc'] = db_file[0]
-                with open(self.main.config_file_loc, 'w') as file:
+                with open(self.main.file_locations['config_file'], 'w') as file:
                     file.write(json.dumps(self.main.config_json))
             elif response == QMessageBox.StandardButton.No:
                 try:

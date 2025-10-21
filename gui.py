@@ -925,9 +925,6 @@ class GUI(QMainWindow):
         except Exception as ex:
             print(str(ex))
 
-        print_file_loc = self.main.file_locations['program_data_dir'] + '/print.pdf'
-        self.main.write_log('print_file_loc: ' + print_file_loc)
-
         currentLine = firstLine
 
         pdf_buffer = io.BytesIO()
