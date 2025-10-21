@@ -7,7 +7,7 @@ else:
 from PyQt6.QtCore import QSize, QRectF, Qt
 from PyQt6.QtGui import QPixmap, QIcon, QPainter, QPageLayout
 from PyQt6.QtPdf import QPdfDocument
-from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
+from PyQt6.QtPrintSupport import QPrinter
 from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QComboBox, QDialog, QVBoxLayout, \
     QMessageBox, QRadioButton, QButtonGroup, QToolButton
 

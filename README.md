@@ -15,9 +15,13 @@ and detailed report to give to your treasurer.
 
 # Installation
 
-Currently, Weekly Giving is available for the Microsoft Windows operating
-system only. Download the current Weekly Giving installer (v.1.5.3_beta) and run
-it on your computer.
+Currently, Weekly Giving is available for Windows and Debian-based Linux operating
+systems.
+- <strong>Windows: </strong>Download the current Weekly Giving installer (Setup.Weekly.Giving.v.1.5.3.exe) and run it 
+on your computer.</li>
+- <strong>Linux: </strong>Download the current Weekly Giving package file (weekly-giving.1.5.3.deb). Double-click to 
+install through your desktop's package manager or, from the command line, navigate to the file's directory and run the 
+command, "sudo dpkg -i weekly-giving.1.5.3.deb".</li>
 
 # Using Weekly Giving
 

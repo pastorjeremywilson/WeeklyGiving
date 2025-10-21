@@ -1,3 +1,4 @@
 /.idea/
 /venv/
-compile configs and installers/weekly_giving.1.5.3_beta/
+compile_configs/*/
+compile_configs/*.deb

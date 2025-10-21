@@ -3,7 +3,7 @@
 
 Copyright 2025 Jeremy G. Wilson
 
-The files contained herein are all part of the Weekly Giving program (v.1.5.3_beta)
+The files contained herein are all part of the Weekly Giving program (v.1.5.4)
 
 Weekly Giving is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License (GNU GPL)
