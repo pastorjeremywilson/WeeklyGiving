@@ -3,7 +3,7 @@
 
 Copyright 2025 Jeremy G. Wilson
 
-The files contained herein are all part of the Weekly Giving program (v.1.5.2)
+The files contained herein are all part of the Weekly Giving program (v.1.5.3_beta)
 
 Weekly Giving is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License (GNU GPL)
@@ -50,6 +50,7 @@ class Main(QObject):
     current_id_index = None
     thread_pool = None
     file_locations = {}
+    config_json = None
 
     def __init__(self):
         super().__init__()
@@ -422,13 +423,13 @@ class Main(QObject):
                 designations.append(widget.text())
 
             try:
-                with open(self.config_file_loc, 'r') as file:
+                with open(self.file_locations['config_file'], 'r') as file:
                     config_json = json.loads(file.read())
 
                 for i in range(len(designations)):
                     config_json['specialDesignations']['spec' + str(i + 1)] = str(designations[i])
 
-                with open(self.config_file_loc, 'w') as file:
+                with open(self.file_locations['config_file'], 'w') as file:
                     file.write(json.dumps(config_json))
 
                 self.gui.rewrite_designations(designations)
@@ -447,12 +448,12 @@ class Main(QObject):
             self.include_special_in_total = False
 
         try:
-            with open(self.config_file_loc, 'r') as file:
+            with open(self.file_locations['config_file'], 'r') as file:
                 config_json = json.loads(file.read())
 
             config_json['includeSpecial'] = self.include_special_in_total
 
-            with open(self.config_file_loc, 'w') as file:
+            with open(self.file_locations['config_file'], 'w') as file:
                 file.write(json.dumps(config_json))
 
         except OSError as err:
@@ -497,12 +498,12 @@ class Main(QObject):
         if result == 0:
             try:
                 self.name = line_edit.text()
-                with open(self.config_file_loc, 'r') as file:
+                with open(self.file_locations['config_file'], 'r') as file:
                     config_json = json.loads(file.read())
 
                 config_json['name'] = self.name
 
-                with open(self.config_file_loc, 'w') as file:
+                with open(self.file_locations['config_file'], 'w') as file:
                     file.write(json.dumps(config_json))
 
                 self.gui.main_title_label.setText(self.name + ' Weekly Giving Report')
@@ -554,12 +555,12 @@ class Main(QObject):
             new_max_checks = spin_box.value()
             self.max_checks = new_max_checks
             try:
-                with open(self.config_file_loc, 'r') as file:
+                with open(self.file_locations['config_file'], 'r') as file:
                     config_json = json.loads(file.read())
 
                 config_json['maxChecks'] = new_max_checks
 
-                with open(self.config_file_loc, 'w') as file:
+                with open(self.file_locations['config_file'], 'w') as file:
                     file.write(json.dumps(config_json))
 
                 conn = sqlite3.connect(self.file_locations['database_file'])
@@ -652,12 +653,12 @@ class Main(QObject):
                 shutil.copy(self.file_locations['database_file'], file_loc)
                 self.file_locations['database_file'] = file_loc
 
-                with open(self.config_file_loc, 'r') as file:
+                with open(self.file_locations['config_file'], 'r') as file:
                     config_json = json.loads(file.read())
 
                 config_json['fileLoc'] = file_loc
 
-                with open(self.config_file_loc, 'w') as file:
+                with open(self.file_locations['config_file'], 'w') as file:
                     file.write(json.dumps(config_json))
 
             except OSError as err:
@@ -995,6 +996,7 @@ class LoadingBox(QDialog):
             self.main.table_name = 'weekly_giving'
             self.main.write_log('Database located at ' + self.main.file_locations['database_file'])
         else:
+            response = None
             try:
                 response = QMessageBox.question(
                     None,
@@ -1029,7 +1031,7 @@ class LoadingBox(QDialog):
                     self.main.table_name = 'weekly_giving'
                     print('dumping config_json to file')
                     self.main.config_json['fileLoc'] = self.main.file_locations['database_file']
-                    with open(self.main.config_file_loc, 'w') as file:
+                    with open(self.main.file_locations['config_file'], 'w') as file:
                         file.write(json.dumps(self.main.config_json))
 
                     print('creating sql')
@@ -1178,7 +1180,7 @@ class Recalc(QRunnable):
                 try:
                     special_tot += float(self.all_values[i].replace(',', ''))
                 except ValueError as ex:
-                    self.gui.lwg.write_log('*Error: ' + str(ex))
+                    self.gui.main.write_log('*Error: ' + str(ex))
                     pass
 
         for i in range(18, len(self.all_values)):
@@ -1187,7 +1189,7 @@ class Recalc(QRunnable):
                     checks_tot += float(self.all_values[i].replace(',', ''))
                     num_checks += 1
                 except ValueError as ex:
-                    self.gui.lwg.write_log('*Error: ' + str(ex))
+                    self.gui.main.write_log('*Error: ' + str(ex))
                     pass
 
         totals = [bills_tot, coins_tot, special_tot, checks_tot, num_checks]

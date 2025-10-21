@@ -258,8 +258,10 @@ class GUI(QMainWindow):
 
         self.id_combo_box = QComboBox()
         self.id_combo_box.setFont(self.standard_font)
-        self.id_combo_box.setMinimumWidth(50)
-        self.id_combo_box.setStyleSheet('background-color: white; border: 1px solid white;')
+        self.id_combo_box.setFixedWidth(100)
+        self.id_combo_box.setStyleSheet(
+            'background-color: white; border: 1px solid white; selection-color: black; selection-background-color: lightGrey;'
+        )
         self.id_combo_box.currentIndexChanged.connect(lambda: self.main.get_by_id(self.id_combo_box.currentText()))
         top_layout.addWidget(self.id_combo_box)
 
@@ -270,8 +272,10 @@ class GUI(QMainWindow):
 
         self.date_combo_box = QComboBox()
         self.date_combo_box.setFont(self.standard_font)
-        self.date_combo_box.setMinimumWidth(120)
-        self.date_combo_box.setStyleSheet('background-color: white; border: 1px solid white;')
+        self.date_combo_box.setFixedWidth(150)
+        self.date_combo_box.setStyleSheet(
+            'background-color: white; border: 1px solid white; selection-color: black; selection-background-color: lightGrey;'
+        )
         self.date_combo_box.currentIndexChanged.connect(lambda: self.main.get_by_id(self.date_combo_box.currentData()[1]))
         top_layout.addWidget(self.date_combo_box)
 
@@ -736,7 +740,7 @@ class GUI(QMainWindow):
         sender.setEnabled(True)
 
         try:
-            with open(self.main.config_file_loc, 'r') as file:
+            with open(self.main.file_locations['config_file'], 'r') as file:
                 config_json = json.loads(file.read())
 
             if 'special_label' in widget.objectName():
@@ -755,7 +759,7 @@ class GUI(QMainWindow):
                 config_json['name'] = line_edit.text()
                 widget.setText(line_edit.text() + ' Weekly Giving Report')
 
-            with open(self.main.config_file_loc, 'w') as file:
+            with open(self.main.file_locations['config_file'], 'w') as file:
                 file.write(json.dumps(config_json))
 
             self.main_title_label.setText(self.main.name + ' Weekly Giving Report')

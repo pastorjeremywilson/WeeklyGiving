@@ -16,7 +16,7 @@ and detailed report to give to your treasurer.
 # Installation
 
 Currently, Weekly Giving is available for the Microsoft Windows operating
-system only. Download the current Weekly Giving installer (v.1.5.2) and run
+system only. Download the current Weekly Giving installer (v.1.5.3_beta) and run
 it on your computer.
 
 # Using Weekly Giving
