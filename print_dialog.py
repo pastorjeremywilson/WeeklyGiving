@@ -1,7 +1,11 @@
-import win32print
-import wmi
+import sys
+if 'linux' not in sys.platform:
+    import win32print
+    import wmi
+else:
+    import cups
 from PyQt6.QtCore import QSize, QRectF, Qt
-from PyQt6.QtGui import QPixmap, QIcon, QPainter
+from PyQt6.QtGui import QPixmap, QIcon, QPainter, QPageLayout
 from PyQt6.QtPdf import QPdfDocument
 from PyQt6.QtPrintSupport import QPrinter
 from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QComboBox, QDialog, QVBoxLayout, \
@@ -217,16 +221,29 @@ class PrintDialog(QDialog):
         """
         Obtain a list of printers currently installed on the system
         """
-        win_management = wmi.WMI()
-        printers = win_management.Win32_Printer()
+        if not 'linux' in sys.platform:
+            win_management = wmi.WMI()
+            printers = win_management.Win32_Printer()
+        else:
+            connection = cups.Connection()
+            printers = connection.getPrinters()
 
         printer_combobox = QComboBox()
         default = ''
-        for printer in printers:
-            if not printer.Hidden:
-                printer_combobox.addItem(printer.Name)
-            if printer.Default:
-                default = printer.Name
+
+        if not 'linux' in sys.platform:
+            for printer in printers:
+                if not printer.Hidden:
+                    printer_combobox.addItem(printer.Name)
+                if printer.Default:
+                    default = printer.Name
+        else:
+            count = 0
+            for printer in printers.keys():
+                printer_combobox.addItem(printer)
+                if count == 0:
+                    default = printer
+                count += 1
 
         printer_combobox.setCurrentText(default)
         return printer_combobox
@@ -255,7 +272,6 @@ class PrintDialog(QDialog):
             round(page_rect_inch.width() * dpi_x, 2),
             round(page_rect_inch.height() * dpi_y, 2)
         )
-        print(self.printer_properties['printable_rect_px'])
 
     def get_pages(self):
         """
@@ -379,24 +395,37 @@ class PrintDialog(QDialog):
         return pages_to_print
 
     def do_print(self):
-        if self.orientation_group.button(1).isChecked():
-            orientation = 2
-        else:
-            orientation = 1
+        """if not 'linux' in sys.platform:
+            if self.orientation_group.button(1).isChecked():
+                orientation = 2
+            else:
+                orientation = 1
 
-        defaults = {"DesiredAccess": win32print.PRINTER_ALL_ACCESS}
-        printer_handle = win32print.OpenPrinter(self.printer_properties['name'], defaults)
-        properties = win32print.GetPrinter(printer_handle, 2)
-        original_orientation = properties['pDevMode'].Orientation
-        original_duplex = properties['pDevMode'].Duplex
+            defaults = {"DesiredAccess": win32print.PRINTER_ACCESS_USE}
+            printer_handle = win32print.OpenPrinter(self.printer_properties['name'], defaults)
+            properties = win32print.GetPrinter(printer_handle, 2)
+            original_orientation = properties['pDevMode'].Orientation
+            original_duplex = properties['pDevMode'].Duplex
 
-        properties['pDevMode'].Orientation = orientation
-        properties['pDevMode'].Duplex = self.duplex_combobox.currentIndex() + 1
-        win32print.SetPrinter(printer_handle, 2, properties, 0)
+            properties['pDevMode'].Orientation = orientation
+            properties['pDevMode'].Duplex = self.duplex_combobox.currentIndex() + 1
+            win32print.SetPrinter(printer_handle, 2, properties, 0)"""
 
         printer = QPrinter(QPrinter.PrinterMode.HighResolution)
         printer.setPrinterName(self.printer_properties['name'])
         printer.setDocName('Bulletin Builder')
+
+        if self.orientation_group.button(1).isChecked():
+            printer.setPageOrientation(QPageLayout.Orientation.Landscape)
+        else:
+            printer.setPageOrientation(QPageLayout.Orientation.Portrait)
+
+        if self.duplex_combobox.currentIndex() == 0:
+            printer.setDuplex(QPrinter.DuplexMode.DuplexNone)
+        elif self.duplex_combobox.currentIndex() == 1:
+            printer.setDuplex(QPrinter.DuplexMode.DuplexLongSide)
+        elif self.duplex_combobox.currentIndex() == 2:
+            printer.setDuplex(QPrinter.DuplexMode.DuplexShortSide)
 
         page_range = self.range_line_edit.text()
         pages_to_print = []
@@ -454,10 +483,11 @@ class PrintDialog(QDialog):
             )
         painter.end()
 
-        properties['pDevMode'].Orientation = original_orientation
-        properties['pDevMode'].Duplex = original_duplex
-        win32print.SetPrinter(printer_handle, 2, properties, 0)
-        win32print.ClosePrinter(printer_handle)
+        """if not 'linux' in sys.platform:
+            properties['pDevMode'].Orientation = original_orientation
+            properties['pDevMode'].Duplex = original_duplex
+            win32print.SetPrinter(printer_handle, 2, properties, 0)
+            win32print.ClosePrinter(printer_handle)"""
 
         self.done(0)
 

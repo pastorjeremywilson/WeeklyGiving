@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['..\\weekly_giving.py'],
+    ['..\\main.py'],
     pathex=[],
     binaries=[],
     datas=[('../resources', 'resources/'), ('../README.md', '.'), ('../README.html', '.')],

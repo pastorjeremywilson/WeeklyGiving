@@ -1,2 +1,4 @@
 /.idea/
 /venv/
+compile_configs/*/
+compile_configs/*.deb

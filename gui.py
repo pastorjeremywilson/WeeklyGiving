@@ -1,7 +1,6 @@
 import io
 import json
 import logging
-import os
 
 from PyQt6.QtPdf import QPdfDocument
 from dateutil.parser import parse, ParserError
@@ -28,13 +27,13 @@ class GUI(QMainWindow):
     light_green = '#eaffe8'
     dark_green = '#00641e'
 
-    def __init__(self, lwg, name, num_checks=30):
+    def __init__(self, main, name, num_checks=30):
         """
-        :param WeeklyGiving lwg: WeeklyGiving instance
+        :param WeeklyGiving main: Main instance
         :param str name: Church name from config
         :param int num_checks: Number of checks to display
         """
-        self.lwg = lwg
+        self.main = main
         self.name = name
         self.num_checks = num_checks
 
@@ -66,16 +65,16 @@ class GUI(QMainWindow):
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel)
 
             if result == QMessageBox.StandardButton.Yes:
-                self.lwg.save_rec()
-                self.lwg.do_backup()
+                self.main.save_rec()
+                self.main.do_backup()
                 event.accept()
             elif result == QMessageBox.StandardButton.No:
-                self.lwg.do_backup()
+                self.main.do_backup()
                 event.accept()
             else:
                 event.ignore()
         else:
-            self.lwg.do_backup()
+            self.main.do_backup()
             event.accept()
 
     def init_components(self):
@@ -106,7 +105,7 @@ class GUI(QMainWindow):
         name_layout = QHBoxLayout()
         self.name_widget.setLayout(name_layout)
 
-        self.main_title_label = QLabel(self.lwg.name + ' Weekly Giving Report')
+        self.main_title_label = QLabel(self.main.name + ' Weekly Giving Report')
         self.main_title_label.setFont(self.title_font)
         self.main_title_label.setStyleSheet('color: white')
         name_layout.addWidget(self.main_title_label)
@@ -148,7 +147,7 @@ class GUI(QMainWindow):
         file_menu = menu_bar.addMenu('File')
 
         save_action = file_menu.addAction('Save Record')
-        save_action.triggered.connect(self.lwg.save_rec)
+        save_action.triggered.connect(self.main.save_rec)
 
         print_action = file_menu.addAction('Print')
         print_action.triggered.connect(self.print_pdf)
@@ -161,35 +160,35 @@ class GUI(QMainWindow):
         tools_menu = menu_bar.addMenu('Tools')
 
         new_action = tools_menu.addAction('New Record')
-        new_action.triggered.connect(self.lwg.create_new_rec)
+        new_action.triggered.connect(self.main.create_new_rec)
 
         delete_action = tools_menu.addAction('Delete Record')
-        delete_action.triggered.connect(self.lwg.del_rec)
+        delete_action.triggered.connect(self.main.del_rec)
 
         log_action = tools_menu.addAction('View Log File')
-        log_action.triggered.connect(self.lwg.view_log)
+        log_action.triggered.connect(self.main.view_log)
 
         config_menu = menu_bar.addMenu('Settings')
 
         name_action = config_menu.addAction('Change Church Name')
-        name_action.triggered.connect(self.lwg.change_name)
+        name_action.triggered.connect(self.main.change_name)
 
         spec_offering_action = config_menu.addAction('Change Special Offering Designations')
-        spec_offering_action.triggered.connect(self.lwg.change_designations)
+        spec_offering_action.triggered.connect(self.main.change_designations)
 
         include_action = config_menu.addAction('Include Special Designations in Total Deposit')
         include_action.setCheckable(True)
-        if self.lwg.include_special_in_total:
+        if self.main.include_special_in_total:
             include_action.setChecked(True)
         else:
             include_action.setChecked(False)
         include_action.triggered.connect(self.include_special)
 
         num_checks_action = config_menu.addAction('Change Maximum Number of Checks')
-        num_checks_action.triggered.connect(self.lwg.change_num_checks)
+        num_checks_action.triggered.connect(self.main.change_num_checks)
 
         new_loc_action = config_menu.addAction('Save Database to New Location')
-        new_loc_action.triggered.connect(self.lwg.save_to_new_loc)
+        new_loc_action.triggered.connect(self.main.save_to_new_loc)
 
         help_menu = menu_bar.addMenu('Help')
 
@@ -215,7 +214,7 @@ class GUI(QMainWindow):
         first_rec_button.setToolTip('Go to the first record')
         first_rec_button.setStyleSheet('padding: 10px; background-color: ' + self.light_green)
         first_rec_button.setMaximumWidth(40)
-        first_rec_button.pressed.connect(self.lwg.get_first_rec)
+        first_rec_button.pressed.connect(self.main.get_first_rec)
         top_layout.addWidget(first_rec_button)
 
         self.prev_rec_button = QPushButton()
@@ -223,7 +222,7 @@ class GUI(QMainWindow):
         self.prev_rec_button.setToolTip('Go to the previous record')
         self.prev_rec_button.setStyleSheet('padding: 10px; background-color: ' + self.light_green)
         self.prev_rec_button.setMaximumWidth(40)
-        self.prev_rec_button.pressed.connect(self.lwg.get_prev_rec)
+        self.prev_rec_button.pressed.connect(self.main.get_prev_rec)
         top_layout.addWidget(self.prev_rec_button)
 
         self.next_rec_button = QPushButton()
@@ -231,7 +230,7 @@ class GUI(QMainWindow):
         self.next_rec_button.setToolTip('Go to the next record')
         self.next_rec_button.setStyleSheet('padding: 10px; background-color: ' + self.light_green)
         self.next_rec_button.setMaximumWidth(40)
-        self.next_rec_button.pressed.connect(self.lwg.get_next_rec)
+        self.next_rec_button.pressed.connect(self.main.get_next_rec)
         top_layout.addWidget(self.next_rec_button)
 
         last_rec_button = QPushButton()
@@ -239,7 +238,7 @@ class GUI(QMainWindow):
         last_rec_button.setToolTip('Go to the last record')
         last_rec_button.setStyleSheet('padding: 10px; background-color: ' + self.light_green)
         last_rec_button.setMaximumWidth(40)
-        last_rec_button.pressed.connect(self.lwg.get_last_rec)
+        last_rec_button.pressed.connect(self.main.get_last_rec)
         top_layout.addWidget(last_rec_button)
 
         new_rec_button = QPushButton()
@@ -247,7 +246,7 @@ class GUI(QMainWindow):
         new_rec_button.setToolTip('Create a new record')
         new_rec_button.setStyleSheet('padding: 10px; background-color: ' + self.light_green)
         new_rec_button.setMaximumWidth(40)
-        new_rec_button.pressed.connect(self.lwg.create_new_rec)
+        new_rec_button.pressed.connect(self.main.create_new_rec)
         top_layout.addWidget(new_rec_button)
 
         top_layout.addStretch(1)
@@ -259,9 +258,11 @@ class GUI(QMainWindow):
 
         self.id_combo_box = QComboBox()
         self.id_combo_box.setFont(self.standard_font)
-        self.id_combo_box.setMinimumWidth(50)
-        self.id_combo_box.setStyleSheet('background-color: white; border: 1px solid white;')
-        self.id_combo_box.currentIndexChanged.connect(lambda: self.lwg.get_by_id(self.id_combo_box.currentText()))
+        self.id_combo_box.setFixedWidth(100)
+        self.id_combo_box.setStyleSheet(
+            'background-color: white; border: 1px solid white; selection-color: black; selection-background-color: lightGrey;'
+        )
+        self.id_combo_box.currentIndexChanged.connect(lambda: self.main.get_by_id(self.id_combo_box.currentText()))
         top_layout.addWidget(self.id_combo_box)
 
         date_label = QLabel('Choose Record by Date:')
@@ -271,9 +272,11 @@ class GUI(QMainWindow):
 
         self.date_combo_box = QComboBox()
         self.date_combo_box.setFont(self.standard_font)
-        self.date_combo_box.setMinimumWidth(120)
-        self.date_combo_box.setStyleSheet('background-color: white; border: 1px solid white;')
-        self.date_combo_box.currentIndexChanged.connect(lambda: self.lwg.get_by_id(self.date_combo_box.currentData()[1]))
+        self.date_combo_box.setFixedWidth(150)
+        self.date_combo_box.setStyleSheet(
+            'background-color: white; border: 1px solid white; selection-color: black; selection-background-color: lightGrey;'
+        )
+        self.date_combo_box.currentIndexChanged.connect(lambda: self.main.get_by_id(self.date_combo_box.currentData()[1]))
         top_layout.addWidget(self.date_combo_box)
 
         self.refresh_combo_boxes()
@@ -294,7 +297,7 @@ class GUI(QMainWindow):
         graph_button.setToolTip('Create a graph of giving within a date range')
         graph_button.setStyleSheet('padding: 10px; background-color: ' + self.light_green)
         graph_button.setMaximumWidth(40)
-        graph_button.pressed.connect(self.lwg.graph_by_date)
+        graph_button.pressed.connect(self.main.graph_by_date)
         top_layout.addWidget(graph_button)
         top_layout.addSpacing(10)
 
@@ -303,7 +306,7 @@ class GUI(QMainWindow):
         self.save_button.setToolTip('Save Record')
         self.save_button.setStyleSheet('padding: 10px; background-color: ' + self.light_green)
         self.save_button.setMaximumWidth(40)
-        self.save_button.pressed.connect(self.lwg.save_rec)
+        self.save_button.pressed.connect(self.main.save_rec)
         top_layout.addWidget(self.save_button)
 
         self.main_layout.addWidget(top_widget, 1, 0, 1, 4)
@@ -502,7 +505,7 @@ class GUI(QMainWindow):
         special_label.setMinimumHeight(30)
         special_layout.addWidget(special_label)
 
-        for i in range(0, len(self.lwg.spec_designations)):
+        for i in range(0, len(self.main.spec_designations)):
             special_line_widget = QWidget()
             special_line_layout = QHBoxLayout()
             special_line_widget.setLayout(special_line_layout)
@@ -518,7 +521,7 @@ class GUI(QMainWindow):
             push_button.pressed.connect(self.change_name)
             special_line_layout.addWidget(push_button)
 
-            label = QLabel(self.lwg.column_pairs[i][1])
+            label = QLabel(self.main.column_pairs[i][1])
             label.setObjectName('special_label' + str(i))
             label.setFont(self.standard_font)
             special_line_layout.addWidget(label)
@@ -551,7 +554,7 @@ class GUI(QMainWindow):
         checks_label.setMinimumHeight(30)
         checks_layout.addWidget(checks_label, 0, 0)
 
-        for i in range(0, self.lwg.max_checks):
+        for i in range(0, self.main.max_checks):
             label = QLabel('Check ' + str(i + 1))
             label.setFont(self.standard_font)
             checks_layout.addWidget(label, i + 1, 0)
@@ -737,7 +740,7 @@ class GUI(QMainWindow):
         sender.setEnabled(True)
 
         try:
-            with open(self.lwg.config_file_loc, 'r') as file:
+            with open(self.main.file_locations['config_file'], 'r') as file:
                 config_json = json.loads(file.read())
 
             if 'special_label' in widget.objectName():
@@ -747,29 +750,29 @@ class GUI(QMainWindow):
                 config_json['specialDesignations'][key] = line_edit.text()
                 widget.setText(line_edit.text())
 
-                for i in range(len(self.lwg.column_pairs)):
-                    if self.lwg.column_pairs[i][0] == key:
-                        self.lwg.column_pairs[i][1] = line_edit.text()
+                for i in range(len(self.main.column_pairs)):
+                    if self.main.column_pairs[i][0] == key:
+                        self.main.column_pairs[i][1] = line_edit.text()
             else:
-                self.lwg.name = line_edit.text()
+                self.main.name = line_edit.text()
 
                 config_json['name'] = line_edit.text()
                 widget.setText(line_edit.text() + ' Weekly Giving Report')
 
-            with open(self.lwg.config_file_loc, 'w') as file:
+            with open(self.main.file_locations['config_file'], 'w') as file:
                 file.write(json.dumps(config_json))
 
-            self.main_title_label.setText(self.lwg.name + ' Weekly Giving Report')
+            self.main_title_label.setText(self.main.name + ' Weekly Giving Report')
 
         except OSError as err:
-            self.lwg.write_log('*Critical error in WeeklyGiving.change_name: ' + str(err))
+            self.main.write_log('*Critical error in WeeklyGiving.change_name: ' + str(err))
 
     def include_special(self):
         """
         Method called when user changes the 'include special designations in totals' menu action
         """
         sender = self.sender()
-        self.lwg.include_special(sender)
+        self.main.include_special(sender)
 
         self.on_change(False)
 
@@ -793,9 +796,9 @@ class GUI(QMainWindow):
             self.changes = True
             self.save_button.setEnabled(True)
 
-        from weekly_giving import Recalc
+        from main import Recalc
         recalc = Recalc(all_values, self)
-        self.lwg.thread_pool.start(recalc)
+        self.main.thread_pool.start(recalc)
 
     def fill_values(self, result_dictionary):
         """
@@ -832,7 +835,7 @@ class GUI(QMainWindow):
             #clear checks and special offering boxes
             for widget in self.findChildren(QLineEdit, QRegularExpression('special_edit*')):
                 widget.setText('')
-            for i in range(0, self.lwg.max_checks):
+            for i in range(0, self.main.max_checks):
                 self.findChild(QLineEdit, 'checks_' + str(i)).setText('')
 
             specials = []
@@ -876,7 +879,7 @@ class GUI(QMainWindow):
         self.designated_total_label.setText(str('{:,.2f}'.format(totals[2])))
         self.checks_total_label.setText(str('{:,.2f}'.format(totals[3])))
 
-        if self.lwg.include_special_in_total:
+        if self.main.include_special_in_total:
             total = totals[0] + totals[1] + totals[2] + totals[3]
         else:
             total = totals[0] + totals[1] + totals[3]
@@ -926,17 +929,13 @@ class GUI(QMainWindow):
         except Exception as ex:
             print(str(ex))
 
-        appData = os.getenv('APPDATA')
-        print_file_loc = appData + '/WeeklyGiving/print.pdf'
-        self.lwg.write_log('print_file_loc: ' + print_file_loc)
-
         currentLine = firstLine
 
         pdf_buffer = io.BytesIO()
         canvas = canvas.Canvas(pdf_buffer, pagesize=letter)
         canvas.setLineWidth(1.0)
         canvas.setFont('NimbusSansBold', 16)
-        canvas.drawString(lineStart, currentLine, self.lwg.name + ' Weekly Giving Report')
+        canvas.drawString(lineStart, currentLine, self.main.name + ' Weekly Giving Report')
         currentLine -= 5
         canvas.line(lineStart, currentLine, lineEnd, currentLine)
 
@@ -1020,19 +1019,19 @@ class GUI(QMainWindow):
         column2 = 210
         canvas.setFont('NimbusSansBold', 11)
         currentLine = topLineofEntries
-        canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec1'])
+        canvas.drawString(column2, currentLine, self.main.spec_designations['spec1'])
         currentLine -= lineHeight
-        canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec2'])
+        canvas.drawString(column2, currentLine, self.main.spec_designations['spec2'])
         currentLine -= lineHeight
-        canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec3'])
+        canvas.drawString(column2, currentLine, self.main.spec_designations['spec3'])
         currentLine -= lineHeight
-        canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec4'])
+        canvas.drawString(column2, currentLine, self.main.spec_designations['spec4'])
         currentLine -= lineHeight
-        canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec5'])
+        canvas.drawString(column2, currentLine, self.main.spec_designations['spec5'])
         currentLine -= lineHeight
-        canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec6'])
+        canvas.drawString(column2, currentLine, self.main.spec_designations['spec6'])
         currentLine -= lineHeight
-        canvas.drawString(column2, currentLine, self.lwg.spec_designations['spec7'])
+        canvas.drawString(column2, currentLine, self.main.spec_designations['spec7'])
         currentLine -= lineHeight
 
         specialArray = []
@@ -1142,10 +1141,10 @@ class GUI(QMainWindow):
         self.id_combo_box.clear()
         self.date_combo_box.clear()
 
-        for item in self.lwg.get_ids():
+        for item in self.main.get_ids():
             self.id_combo_box.addItem(str(item))
 
-        for item in self.lwg.get_dates():
+        for item in self.main.get_dates():
             self.date_combo_box.addItem(item[0], (1, item[1]))
 
         self.id_combo_box.blockSignals(False)
