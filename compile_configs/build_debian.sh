@@ -53,6 +53,7 @@ EOF
 
 echo Creating Binary
 cat > $PROGRAMNAME.$VERSION/usr/bin/$PROGRAMNAME <<EOF
+#!/bin/bash
 cd /usr/local/$PROGRAMNAME
 ./$VENV/bin/python3 main.py
 EOF
